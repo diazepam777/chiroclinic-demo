@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' blob:; media-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<script src="./demo-shim.js"></script>
+<script src="./csp-events.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Patient intake</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<style>
+  :root{--accent:#2B5F5C;--border:#d6dbe0;--text3:#667}
+  *{box-sizing:border-box} body{margin:0;font:17px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f3f6f7;color:#1d2a30;-webkit-user-select:none;user-select:none}
+  input,select,textarea{font:inherit;-webkit-user-select:text;user-select:text}
+  header{position:sticky;top:0;background:var(--accent);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:12px;z-index:5}
+  header h1{font-size:19px;margin:0;flex:1} #staffBtn{background:transparent;border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:6px;padding:4px 10px;font-size:13px}
+  main{max-width:860px;margin:0 auto;padding:16px}
+  .step{display:none;background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px} .step.on{display:block}
+  .step h2{margin:0 0 10px;font-size:21px} label{display:block;font-weight:600;margin:12px 0 4px;font-size:15px}
+  input[type=text],input[type=tel],input[type=email],input[type=date],select,textarea{width:100%;padding:11px;border:1px solid var(--border);border-radius:8px;background:#fff;min-height:46px}
+  textarea{min-height:70px} .grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px} @media(max-width:700px){.grid{grid-template-columns:1fr}}
+  .nav{display:flex;gap:10px;margin-top:18px} .nav button{flex:1;min-height:52px;border-radius:10px;font-size:18px;border:0}
+  .primary{background:var(--accent);color:#fff} .secondary{background:#e3e9ea;color:#1d2a30} button:disabled{opacity:.45}
+  .opts{display:flex;flex-wrap:wrap;gap:8px} .opt{border:1px solid var(--border);border-radius:22px;padding:9px 14px;background:#fff;min-height:44px;font-size:16px}
+  .opt.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .rf{padding:10px 0;border-bottom:1px solid #eef} .rf .q{margin-bottom:6px}
+  .sec{padding:10px 0;border-bottom:1px solid #eef} .sec .t{font-weight:700;margin-bottom:6px}
+  .sec .opt{display:block;width:100%;text-align:left;border-radius:10px;margin:4px 0}
+  .err{color:#a00;font-size:15px;margin-top:8px;min-height:1em} .muted{color:var(--text3);font-size:14px}
+  #progress{height:6px;background:#dfe7e8;border-radius:3px;margin-bottom:12px} #progress div{height:6px;background:var(--accent);border-radius:3px;width:0}
+  .medrow{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;margin:6px 0} .medrow button{border:0;background:#eee;border-radius:8px;padding:0 12px}
+  #vasVal{font-size:28px;font-weight:700;color:var(--accent)} input[type=range]{width:100%;height:40px}
+  #pinBox{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:20} #pinBox>div{background:#fff;border-radius:12px;padding:18px;width:320px}
+</style>
+<script src="./intake-flag.js"></script>
+<script src="./p1-item3.js"></script>
+<script src="./p1-item9.js"></script>
+<link rel="stylesheet" href="./p1-a11y.css"><!-- P1 v6 audit: iPad tap targets + focus ring -->
+</head>
+<body>
+<header><h1>Patient information form</h1><button type="button" id="staffBtn">Staff</button></header>
+<main>
+  <div id="progress"><div></div></div>
+  <div id="noKiosk" class="step"><h2>This form is not ready</h2><p>Please hand the iPad back to reception.</p></div>
+
+  <section class="step" data-step="consent"><div id="consentText"></div>
+    <div id="childBox" class="muted" style="margin-top:8px">If the patient is under 18, a parent or legal guardian must read this and give consent (POPIA section 35).</div>
+    <label style="font-weight:400"><input type="checkbox" id="cConsent" style="width:24px;height:24px;vertical-align:middle"> I have read this notice and consent to the practice using my information as described.</label>
+    <div class="nav"><button type="button" class="secondary" id="cDecline">I do not consent</button><button type="button" class="primary" data-next>Continue</button></div>
+    <div class="err"></div></section>
+
+  <section class="step" data-step="declined"><h2>Thank you</h2><p>Nothing has been saved. Please hand the iPad back to reception; your practitioner will talk to you in person.</p>
+    <div class="nav"><button type="button" class="primary" id="restart1">Start again</button></div></section>
+
+  <section class="step" data-step="demo"><h2>About you</h2>
+    <div class="grid"><div><label>First name *</label><input type="text" id="dFirst" autocomplete="off"></div><div><label>Surname *</label><input type="text" id="dLast" autocomplete="off"></div>
+    <div><label>Date of birth *</label><input type="date" id="dDob"></div><div><label>SA ID number</label><input type="text" id="dId" inputmode="numeric" autocomplete="off"></div>
+    <div><label>Gender</label><select id="dGender"></select></div><div><label>Cell number</label><input type="tel" id="dPhone" autocomplete="off"></div>
+    <div><label>Email</label><input type="email" id="dEmail" autocomplete="off"></div><div><label>Medical aid</label><input type="text" id="dMedAid" autocomplete="off"></div>
+    <div><label>Medical aid number</label><input type="text" id="dMedAidNo" autocomplete="off"></div></div>
+    <div id="guardian" style="display:none;margin-top:10px;padding:10px;background:#fff8e1;border-radius:8px"><b>The patient is under 18.</b> A parent or legal guardian must complete this part (POPIA section 35).
+      <div class="grid"><div><label>Parent / guardian full name *</label><input type="text" id="gName" autocomplete="off"></div><div><label>Relationship to the patient *</label><input type="text" id="gRel" autocomplete="off"></div></div>
+      <label style="font-weight:400"><input type="checkbox" id="gConsent" style="width:24px;height:24px;vertical-align:middle"> I am the parent or legal guardian and I consent for this child.</label></div>
+    <div class="nav"><button type="button" class="secondary" data-back>Back</button><button type="button" class="primary" data-next>Next</button></div><div class="err"></div></section>
+
+  <section class="step" data-step="complaint"><h2>Your main problem</h2>
+    <label>Where is the main problem? *</label><div class="opts" id="cRegion"></div>
+    <label>Which side?</label><div class="opts" id="cSide"></div>
+    <div class="grid"><div><label>When did it start?</label><input type="date" id="cOnset"></div><div><label>How long have you had it? (e.g. 3 weeks)</label><input type="text" id="cDuration" autocomplete="off"></div></div>
+    <label>Is it there all the time?</label><div class="opts" id="cFreq"></div>
+    <label>Treatment you have already had for this problem</label><input type="text" id="cPrevTx" autocomplete="off">
+    <label>How did that treatment help?</label><div class="opts" id="cResp"></div>
+    <label>Pain right now: 0 = none, 10 = worst imaginable</label><input type="range" id="cVas" min="0" max="10" step="1" value="0"><div><span id="vasVal">—</span> <span class="muted">(move the slider)</span></div>
+    <div class="nav"><button type="button" class="secondary" data-back>Back</button><button type="button" class="primary" data-next>Next</button></div><div class="err"></div></section>
+
+  <section class="step" data-step="history"><h2>Your health</h2>
+    <label>Do you have, or have you had, any of these? (tap all that apply)</label><div class="opts" id="hCond"></div>
+    <label>Other conditions</label><input type="text" id="hCondOther" autocomplete="off">
+    <label>Allergies (medicines, plasters, latex, food…)</label><input type="text" id="hAllergies" autocomplete="off">
+    <label>Medicines and supplements you take</label><div id="hMeds"></div><button type="button" class="opt" id="hAddMed">+ Add a medicine</button>
+    <label>Operations you have had (with year)</label><textarea id="hSurg"></textarea>
+    <label>Illnesses that run in your family</label><textarea id="hFam"></textarea>
+    <div class="grid"><div><label>Smoking</label><select id="hSmoke"></select></div><div><label>Alcohol</label><select id="hAlc"></select></div>
+    <div><label>Exercise</label><select id="hEx"></select></div><div><label>Occupation</label><input type="text" id="hOcc" autocomplete="off"></div></div>
+    <div class="nav"><button type="button" class="secondary" data-back>Back</button><button type="button" class="primary" data-next>Next</button></div><div class="err"></div></section>
+
+  <section class="step" data-step="redflags"><h2>Safety questions</h2><p class="muted">These help your practitioner check that treatment is safe for you. Please answer each one. If you are not sure, choose “Not sure”.</p>
+    <div id="rfList"></div>
+    <h3 style="margin-top:18px">Joint flexibility (optional)</h3><p class="muted">You may skip these. They help your practitioner check whether your joints are very flexible.</p>
+    <div id="h5List"></div>
+    <div class="nav"><button type="button" class="secondary" data-back>Back</button><button type="button" class="primary" data-next>Next</button></div><div class="err"></div></section>
+
+  <section class="step" data-step="questionnaire"><h2 id="qTitle"></h2><p id="qIntro"></p><div id="qList"></div>
+    <div class="nav"><button type="button" class="secondary" data-back>Back</button><button type="button" class="primary" data-next>Next</button></div><div class="err"></div></section>
+
+  <section class="step" data-step="review"><h2>Ready to send</h2><p>Your practitioner will go through your answers with you before anything is added to your file.</p>
+    <div id="sumBox" class="muted"></div>
+    <div class="nav"><button type="button" class="secondary" data-back>Back</button><button type="button" class="primary" id="sendBtn">Send to my practitioner</button></div><div class="err"></div></section>
+
+  <section class="step" data-step="done"><h2>Thank you</h2><p>Your form has been sent. Please hand the iPad back to reception.</p></section>
+</main>
+<div id="pinBox"><div><b>Staff only</b><p class="muted">Enter the staff PIN to leave the patient form.</p><input type="password" id="pinIn" inputmode="numeric" autocomplete="off" style="width:100%;padding:10px;font-size:20px"><div class="err" id="pinErr"></div>
+  <div class="nav"><button type="button" class="secondary" id="pinCancel">Cancel</button><button type="button" class="primary" id="pinOk">Unlock</button></div></div></div>
+<script src="./intake-main.js"></script>
+<script src="./p1-a11y.js"></script>
+</body>
+</html>

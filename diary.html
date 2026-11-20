@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' blob:; media-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<script src="./demo-shim.js"></script>
+<script src="./csp-events.js"></script>
+<script src="./p1-boot-kiosk.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ChiroClinic">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#2B5F5C">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<title>ChiroClinic Diary</title>
+<style>
+:root{/* v6 audit: red/green/blue darkened for WCAG 1.4.3 contrast */--bg:#F7F5F2;--surface:#fff;--surface2:#F0EDEA;--border:#E0DCD7;--text:#2D2D2D;--text2:#5A5A5A;--accent:#2B5F5C;--accent2:#3A7D79;--red:#B03A2E;--orange:#E67E22;--green:#1E7E46;--blue:#1F618D;--purple:#8E44AD;--radius:12px;--font:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;-webkit-tap-highlight-color:transparent}.top{position:sticky;top:0;z-index:50;background:linear-gradient(135deg,#2B5F5C,#1E4744);color:white;padding:12px 14px;box-shadow:0 4px 20px rgba(43,95,92,.25)}.top-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.brand{font-weight:700;font-size:17px}.sub{font-size:11px;opacity:.8}.actions{display:flex;gap:6px;flex-wrap:wrap}.btn{border:0;border-radius:8px;padding:9px 12px;font-weight:600;font-size:12px;background:var(--accent);color:white;cursor:pointer}.top .btn{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.25)}.btn.secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}.btn.danger{background:var(--red)}.btn.green{background:var(--green)}.layout{max-width:1280px;margin:0 auto;padding:12px}.toolbar{display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:end;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:10px;box-shadow:0 2px 12px rgba(0,0,0,.04)}label{font-size:11px;color:var(--text2);font-weight:600;margin-bottom:4px;display:block}input,select,textarea{width:100%;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);padding:9px 10px;font-family:var(--font);font-size:14px}textarea{min-height:68px;resize:vertical}.summary{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}.pill{background:#fff;border:1px solid var(--border);border-radius:999px;padding:7px 11px;font-size:12px}.pill strong{color:var(--accent)}.diary-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.04)}.bioflex-banner{background:rgba(41,128,185,.10);border:1px solid rgba(41,128,185,.25);color:var(--blue);border-radius:10px;padding:8px 10px;font-size:12px;font-weight:700;margin-bottom:10px}.grid{display:grid;grid-template-columns:78px repeat(14,minmax(112px,1fr));min-width:1650px}.head{position:sticky;top:78px;z-index:20;background:#fff;border-bottom:1px solid var(--border)}.cell{border-right:1px solid var(--border);border-bottom:1px solid var(--border);min-height:58px;padding:5px;background:#fff}.time{background:#faf8f5;color:var(--text2);font-size:12px;font-weight:700;text-align:center;display:flex;align-items:flex-start;justify-content:center;padding-top:8px}.dayhead{padding:10px 8px;text-align:center;font-weight:700;background:#fff}.daygroup{padding:9px 8px;text-align:center;font-weight:800;background:#faf8f5;border-right:1px solid var(--border);border-bottom:1px solid var(--border);color:var(--accent)}.dayhead .subcol{display:block;font-size:10px;font-weight:600;color:var(--text2);margin-top:3px}.dayhead.bioflex{background:rgba(41,128,185,.14);color:var(--blue);font-weight:800}.dayhead.diarycol{background:#fff;color:var(--accent)}.slot.bioflex{background:rgba(41,128,185,.025)}.slot.bioflex:hover{background:rgba(41,128,185,.08)}.dayhead.today{background:rgba(43,95,92,.08);color:var(--accent)}.slot{cursor:pointer;position:relative}.slot:hover{background:#f9fbfb}.slot.now{box-shadow:inset 3px 0 0 var(--red)}.entry{border-radius:8px;padding:5px 6px;margin-bottom:4px;font-size:11px;line-height:1.25;background:rgba(43,95,92,.09);border:1px solid rgba(43,95,92,.22);cursor:pointer}.entry .name{font-weight:700;font-size:12px}.entry.note{background:rgba(230,126,34,.10);border-color:rgba(230,126,34,.28)}.entry.block{background:rgba(142,68,173,.10);border-color:rgba(142,68,173,.28)}.entry.bioflex{background:rgba(41,128,185,.10);border-color:rgba(41,128,185,.30);border-left:4px solid var(--blue)}.entry.cancelled{opacity:.55;text-decoration:line-through}.entry.late{border-left:4px solid var(--orange)}.entry.arrived{border-left:4px solid var(--green)}.entry.dna{border-left:4px solid var(--red)}.legend{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 0}.legend span{font-size:11px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.25);padding:4px 7px;border-radius:999px}.scroller{overflow:auto;max-height:calc(100vh - 190px)}.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;align-items:center;justify-content:center;padding:14px}.modal-bg.show{display:flex}.modal{background:#fff;border-radius:14px;border:1px solid var(--border);width:min(760px,100%);max-height:88vh;overflow:auto;padding:16px;box-shadow:0 12px 40px rgba(0,0,0,.25)}.modal h2{font-size:17px;margin:0 0 12px}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.full{grid-column:1/-1}.smallrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.toast{display:none;position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:10px 18px;border-radius:999px;z-index:200;font-weight:700}.patient-list{display:none;position:absolute;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.15);max-height:180px;overflow:auto;z-index:130;left:0;right:0;top:100%;margin-top:3px}.patient-item{padding:8px 10px;border-bottom:1px solid #eee;cursor:pointer}.patient-item:hover{background:#f5f3ef}@media(max-width:800px){.toolbar{grid-template-columns:1fr 1fr}.formgrid{grid-template-columns:1fr}.grid{grid-template-columns:68px repeat(14,124px)}.cell{min-height:66px}.scroller{max-height:calc(100vh - 230px)}.brand{font-size:15px}.top .btn{padding:7px 9px}}.mode-badge{display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.02em;border:1.5px solid rgba(255,255,255,.45);background:rgba(0,0,0,.28);box-shadow:0 2px 8px rgba(0,0,0,.2)}.mode-badge.server{background:#1B7A4A;border-color:#7DFFB2;color:#E8FFF2}.mode-badge.local{background:#8A4B12;border-color:#FFD089;color:#FFF6E8}.mode-badge.detecting{background:rgba(255,255,255,.12);color:#fff}.mode-badge .dot{width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px rgba(255,255,255,.25)}.sync-loss-note{display:none;margin-top:6px;max-width:36rem;font-size:11px;font-weight:600;line-height:1.35;color:#FFD089;opacity:.95}.sync-loss-note.show{display:block}
+</style>
+<link rel="stylesheet" href="./p1-a11y.css"><!-- P1 v6 audit: iPad tap targets + focus ring -->
+</head>
+<body>
+<div class="top">
+  <div class="top-row">
+    <div><div class="brand"><img src="./icons/logo-cc.svg" alt="" style="height:1.15em;width:1.15em;vertical-align:-0.2em;margin-right:6px">ChiroClinic Diary</div><div class="sub">Flexible diary · 15-minute slots · 07:30–19:00 · bookings, notes and visible blue Bioflex Laser columns · V4.3.2</div><div id="diaryModeBadge" class="mode-badge detecting" role="status" aria-live="polite"><span class="dot" aria-hidden="true"></span><span id="diaryModeBadgeText">Checking diary storage…</span></div><div id="diarySyncLossNote" class="sync-loss-note" role="status" aria-live="polite"></div></div>
+    <div class="actions"><button class="btn" data-cc-click="goToday()">Today</button><button class="btn" data-cc-click="changeWeek(-1)">← Week</button><button class="btn" data-cc-click="changeWeek(1)">Week →</button><button class="btn" data-cc-click="window.location.href='./index.html'">Clinical App</button></div>
+  </div>
+  <div class="legend"><span>Booking</span><span>Bioflex Laser</span><span>Note</span><span>Block</span><span>Late</span><span>Arrived</span><span>DNA</span></div>
+</div>
+<div class="layout">
+  <div class="toolbar">
+    <div><label>Week starting</label><input type="date" id="weekStart" data-cc-change="loadDiary()"></div>
+    <div><label>Find</label><input id="search" placeholder="Patient / note / phone" data-cc-input="renderDiary()"></div>
+    <button class="btn secondary" data-cc-click="openEntry(null, selectedDateISO(), '07:30')">+ Add</button>
+    <button class="btn green" data-cc-click="makeBackup()">Backup</button>
+  </div>
+  <div class="summary" id="summary"></div>
+  <div class="bioflex-banner">Each day has TWO booking columns: normal Diary column + blue Bioflex Laser column.</div><div class="diary-wrap"><div class="scroller" tabindex="0" role="region" aria-label="Diary week grid"><div id="diaryGrid"></div></div></div>
+</div>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h2 id="modalTitle">Diary Entry</h2>
+    <div class="formgrid">
+      <div><label>Type</label><select id="eType" data-cc-change="typeChanged()"><option value="booking">Patient booking</option><option value="bioflex">Bioflex Laser booking</option><option value="note">Diary note</option><option value="block">Blocked time</option></select></div>
+      <div><label>Diary column</label><select id="eLane"><option value="main">Normal diary</option><option value="bioflex">Bioflex Laser column</option></select></div>
+      <div><label>Status</label><select id="eStatus"><option>Booked</option><option>Confirmed</option><option>Arrived</option><option>Late</option><option>In room</option><option>Complete</option><option>DNA</option><option>Cancelled</option></select></div>
+      <div><label>Date</label><input type="date" id="eDate"></div>
+      <div><label>Start time</label><select id="eTime"></select></div>
+      <div><label>Duration</label><select id="eDuration"><option value="15">15 min</option><option value="30">30 min</option><option value="45">45 min</option><option value="60">60 min</option><option value="75">75 min</option><option value="90">90 min</option><option value="120">120 min</option></select></div>
+      <div><label>Practitioner / room</label><input id="eRoom" placeholder="e.g. TJ / Room 1"></div>
+      <div class="full" style="position:relative"><label>Patient / note title</label><input id="ePatient" placeholder="Patient name or diary note title" data-cc-input="patientSuggest()" autocomplete="off"><div class="patient-list" id="patientList"></div></div>
+      <div><label>Phone</label><input id="ePhone" placeholder="Phone"></div>
+      <div><label>Reason / appointment type</label><input id="eReason" placeholder="New, follow-up, re-exam, report, etc."></div>
+      <div class="full"><label>Diary note</label><textarea id="eNote" placeholder="Examples: patient late, phoned to move appointment, awaiting MRI report, bring medical aid card..."></textarea></div>
+    </div>
+    <div class="smallrow">
+      <button class="btn green" data-cc-click="saveEntry()">Save entry</button>
+      <button class="btn secondary" data-cc-click="duplicateEntry()">Duplicate</button>
+      <button class="btn danger" id="deleteBtn" data-cc-click="deleteEntry()">Delete</button>
+      <button class="btn secondary" data-cc-click="closeModal()">Close</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="./diary-main.js"></script>
+
+<script src="./pwa-boot.js" id="chiroclinic-pwa-bootstrap"></script>
+<script src="./p1-auth.js"></script>
+<script src="./diary-weekend.js"></script>
+<script src="./p1-a11y.js"></script>
+</body>
+</html>
+

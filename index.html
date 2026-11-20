@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' blob:; media-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<script src="./demo-shim.js"></script>
+<script src="./csp-events.js"></script>
+<script src="./p1-boot-kiosk.js"></script>
+<script src="./p1-boot-stamp.js"></script>
+<script src="./p1-sha256.js"></script>
+<script src="./p1-store.js"></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ChiroClinic">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#2B5F5C">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<link rel="icon" type="image/svg+xml" href="./icons/logo-cc.svg">
+<title>ChiroClinic</title>
+<style>
+@import url('./vendor/fonts/fonts.css'); /* P1 v6 audit: self-hosted (was fonts.googleapis.com) */
+:root {
+  --bg: #F7F5F2;
+  --surface: #FFFFFF;
+  --surface2: #F0EDEA;
+  --surface3: #E8E4E0;
+  --border: #E0DCD7;
+  --border2: #D0CBC5;
+  --text: #2D2D2D;
+  --text2: #5A5A5A;
+  --text3: #666666; /* v6 audit: was #8A8A8A (3.45:1 on white) — now >= 4.5:1 on every card background (WCAG 1.4.3) */
+  --accent: #2B5F5C;
+  --accent2: #3A7D79;
+  --accent-glow: rgba(43,95,92,.12);
+  --green: #1E7E46; /* v6 audit: was #27AE60 (2.87:1 as text on white) */
+  --green-dim: rgba(39,174,96,.1);
+  --red: #B03A2E; /* v6 audit: was #C0392B (4.41:1 on the exercise-card tint) */
+  --red-dim: rgba(192,57,43,.08);
+  --yellow: #F39C12;
+  --orange: #E67E22;
+  --purple: #8E44AD;
+  --teal: #2B5F5C;
+  --prev: #2980B9;
+  --radius: 12px;
+  --font: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:var(--font); background:var(--bg); color:var(--text); min-height:100vh; font-size:14px; -webkit-tap-highlight-color:transparent; -webkit-font-smoothing:antialiased; }
+button { font-family:var(--font); cursor:pointer; border:none; }
+input,select,textarea { font-family:var(--font); font-size:14px; background:#FFFFFF; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:10px 12px; outline:none; width:100%; transition:all .2s; }
+input:focus,select:focus,textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+select { appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%235A5A5A' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 10px center; padding-right:28px; }
+textarea { resize:vertical; min-height:60px; }
+label { font-size:12px; color:var(--text2); display:block; margin-bottom:4px; font-weight:500; }
+
+/* Header */
+.header { background:linear-gradient(135deg, #2B5F5C 0%, #1E4744 100%); border-bottom:none; padding:16px 16px 14px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; box-shadow:0 4px 20px rgba(43,95,92,.3); color:white; }
+.header-brand { display:flex; align-items:center; gap:12px; }
+.header-logo { width:46px; height:46px; border-radius:10px; background:#FFFFFF; padding:5px; box-shadow:0 2px 8px rgba(0,0,0,.15); }
+.header-logo img { width:100%; height:100%; object-fit:contain; }
+.header h1 { font-family:'Playfair Display',Georgia,serif; font-size:17px; font-weight:600; color:white; letter-spacing:.3px; }
+.header-sub { font-size:10px; color:rgba(255,255,255,.75); letter-spacing:.2px; }
+#hdrName { max-width:46vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } /* v5: long Profile names never push the toolbar */
+.header-actions { display:flex; gap:6px; min-width:0; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+.header-actions::-webkit-scrollbar { display:none; }
+.header-actions button { background:rgba(255,255,255,.15); color:white; padding:6px 10px; border-radius:6px; font-size:11px; border:1px solid rgba(255,255,255,.25); white-space:nowrap; transition:.2s; }
+.header-actions button:hover { background:rgba(255,255,255,.3); }
+.header-actions button.primary { background:rgba(255,255,255,.25); border-color:rgba(255,255,255,.4); }
+.header-actions #dictFloatToggle.dictation-active { background:#FFFFFF; color:var(--accent); border-color:#FFFFFF; }
+
+/* Nav tabs */
+.nav { display:flex; overflow-x:auto; background:#FFFFFF; border-bottom:1px solid var(--border); padding:0 4px; -webkit-overflow-scrolling:touch; box-shadow:0 1px 4px rgba(0,0,0,.04); }
+.nav::-webkit-scrollbar { display:none; }
+.nav button { flex-shrink:0; padding:10px 12px; font-size:11px; color:var(--text2); background:none; border-bottom:2px solid transparent; transition:.2s; white-space:nowrap; }
+.nav button:hover { color:var(--text); }
+.nav button.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+/* Main content */
+.main { max-width:960px; margin:0 auto; padding:16px; padding-bottom:80px; }
+.section { display:none; }
+.section.active { display:block; }
+
+/* Cards */
+.card { background:#FFFFFF; border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:12px; box-shadow:0 2px 12px rgba(0,0,0,.04); }
+.card-title { font-size:14px; font-weight:600; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+.card-title .icon { width:26px; height:26px; background:var(--accent); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0; color:white; }
+
+/* Grid */
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+.grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+@media(max-width:600px) { .grid2,.grid3,.grid4 { grid-template-columns:1fr; } }
+
+/* Chips */
+.chip-group { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+.chip { padding:5px 12px; border-radius:20px; font-size:12px; background:var(--surface2); border:1px solid var(--border); color:var(--text2); cursor:pointer; transition:.2s; user-select:none; }
+.chip:hover { border-color:var(--accent); }
+.chip.active { background:var(--accent); border-color:var(--accent); color:#fff; box-shadow:0 2px 8px rgba(43,95,92,.25); }
+.chip.red { background:var(--red); border-color:var(--red); color:#fff; }
+
+/* VAS slider */
+.vas-container { display:flex; align-items:center; gap:10px; }
+.vas-container input[type=range,
+    {region:'Cervical',cat:'mobility',name:'Controlled jaw opening',rx:'2-3 x 8-10 slow reps, 2-3x/day',phase:['subacute','chronic'],codes:['M26.6'],symptoms:['jaw','tmj','click'],reason:'TMJ mobility/control',caution:'Avoid forced wide opening or locking.'},
+    {region:'Cervical',cat:'strength',name:'Isometric jaw lateral',rx:'5-8 sec holds x 4-6 each side',phase:['subacute','chronic'],codes:['M26.6'],symptoms:['jaw','tmj','weak'],reason:'early TMJ motor control',caution:'Stop if sharp TMJ pain.'},
+    {region:'Ankle/Foot',cat:'strength',name:'Alfredson eccentric heel drops',rx:'3 x 15 slow lowers, once-twice daily as tolerated',phase:['subacute','chronic'],codes:['M76.6'],symptoms:['achilles','heel','tendon'],reason:'Achilles tendinopathy loading (Alfredson)',caution:'Expect load-related ache; stop if sharp tear-like pain.'},
+    {region:'Lumbar',cat:'strength',name:'Pallof press',rx:'2-3 x 8-10 each side',phase:['subacute','chronic'],codes:['M54.5'],symptoms:['core','rotate','unstable'],reason:'anti-rotation core control',caution:'Keep ribs down; stop if back pain dominates.'},
+    {region:'Lumbar',cat:'strength',name:'Single-leg bridge',rx:'2-3 x 8-10 each side',phase:['subacute','chronic'],codes:['M54.5','M53.3'],symptoms:['glute','weak','pelvis'],reason:'unilateral posterior chain / pelvic control',caution:'Keep pelvis level; stop if lumbar pain dominates.'},
+    {region:'Shoulder',cat:'strength',name:'Scaption (full-can)',rx:'2-3 x 8-12',phase:['subacute','chronic'],codes:['M75'],symptoms:['weak','rotator cuff','shoulder'],reason:'supraspinatus/deltoid elevation-plane loading',caution:'Stay below painful arc if irritable.'},
+    {region:'Shoulder',cat:'strength',name:'Isometric external rotation (wall)',rx:'5-8 sec x 5-8',phase:['acute','early_subacute','subacute'],codes:['M75'],symptoms:['rotator cuff','painful arc','irritable'],reason:'early-phase RC ER isometric',caution:'Pain-free push only.'},
+    {region:'Shoulder',cat:'strength',name:'Isometric internal rotation',rx:'5-8 sec x 5-8',phase:['acute','early_subacute','subacute'],codes:['M75'],symptoms:['rotator cuff','irritable','shoulder'],reason:'early-phase RC IR isometric',caution:'Pain-free push only.'},
+    {region:'Vestibular/Balance',cat:'mobility',name:'Brandt-Daroff',rx:'5 cycles each side, 2-3x/day',phase:['subacute','chronic'],codes:['H81'],symptoms:['vertigo','dizzy','bppv'],reason:'BPPV habituation HEP',caution:'Use near bed; stop if severe lasting neurological symptoms.'},
+    {region:'Thoracic',cat:'stretch',name:'Seated lateral costal stretch',rx:'3 x 20-30 seconds each side with breath',phase:['subacute','chronic'],codes:['M99.2','M54.6'],symptoms:['rib','breath','stiff thoracic'],reason:'lateral costal / rib mobility with breath',caution:'Avoid forced end-range after rib injury.'}
+] { -webkit-appearance:none; flex:1; height:6px; border-radius:3px; background:linear-gradient(90deg,var(--green),var(--yellow),var(--orange),var(--red)); border:none; padding:0; }
+.vas-container input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:24px; height:24px; border-radius:50%; background:white; border:3px solid var(--accent); cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,.15); }
+.vas-val { font-size:20px; font-weight:700; min-width:30px; text-align:center; }
+
+/* ROM table */
+.rom-table { width:100%; border-collapse:collapse; font-size:12px; }
+.rom-table th { text-align:left; padding:6px 4px; color:var(--text2); font-weight:500; border-bottom:1px solid var(--border); font-size:11px; }
+.rom-table td { padding:4px; border-bottom:1px solid rgba(46,51,69,.4); }
+.rom-table input { padding:4px 6px; font-size:12px; }
+.rom-table select { padding:4px 6px; font-size:12px; }
+.rom-table input[type=checkbox] { width:auto; }
+
+/* Body map */
+.body-map-container { position:relative; display:flex; justify-content:center; touch-action:none; }
+.body-map-container canvas { border-radius:var(--radius); border:1px solid var(--border); max-width:100%; background:#FFFFFF; box-shadow:0 2px 12px rgba(0,0,0,.06); }
+.paint-tools { display:flex; gap:6px; margin-bottom:8px; align-items:center; flex-wrap:wrap; }
+.paint-tools button { padding:6px 12px; border-radius:6px; font-size:12px; background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+.paint-tools button.active { background:var(--accent); border-color:var(--accent); }
+
+/* Prev value */
+.prev-val { color:var(--prev); font-size:11px; font-style:italic; }
+
+/* Side selector */
+.side-sel { display:inline-flex; border-radius:6px; overflow:hidden; border:1px solid var(--border); margin-left:auto; }
+.side-sel button { padding:4px 12px; font-size:11px; background:var(--surface2); color:var(--text2); }
+.side-sel button.active { background:var(--accent); color:#fff; }
+
+/* Region exam tabs */
+.region-tabs { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:4px; }
+.region-tab { padding:6px 14px; border-radius:20px; font-size:12px; background:var(--surface2); border:1px solid var(--border); color:var(--text2); cursor:pointer; transition:.2s; }
+.region-tab.active { background:var(--accent); border-color:var(--accent); color:#fff; box-shadow:0 2px 8px rgba(43,95,92,.25); }
+
+/* SOAP tabs */
+.soap-tabs { display:flex; gap:2px; margin-bottom:12px; background:var(--surface2); border-radius:8px; padding:3px; }
+.soap-tab { flex:1; text-align:center; padding:7px 8px; font-size:12px; border-radius:6px; color:var(--text2); cursor:pointer; font-weight:500; transition:.2s; }
+.soap-tab.active { background:var(--accent); color:#fff; box-shadow:0 2px 8px rgba(43,95,92,.3); }
+.soap-panel { display:none; }
+.soap-panel.active { display:block; }
+
+/* Exercise card */
+.exercise-card { background:var(--surface2); border-radius:8px; padding:12px; margin-bottom:8px; border:1px solid var(--border); }
+.exercise-card a { color:var(--accent); font-size:12px; text-decoration:none; }
+.ex-img-btn { background:var(--accent); color:#fff; border:none; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:500; cursor:pointer; font-family:inherit; flex-shrink:0; }
+.ex-img-btn:hover { background:var(--accent2); }
+.ex-img-modal { position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:20px; }
+.ex-img-modal img { max-width:100%; max-height:80vh; border-radius:8px; background:#fff; }
+.ex-img-modal .ex-img-caption { color:#fff; margin-top:12px; font-size:14px; text-align:center; }
+.ex-desc { font-size:11px; color:var(--text3); line-height:1.35; margin-top:4px; }
+@media(max-width:720px){#ihPreviewWrap{grid-template-columns:1fr!important}}
+
+/* Photo grid */
+.photo-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(100px,1fr)); gap:8px; }
+.photo-thumb { width:100%; aspect-ratio:1; object-fit:cover; border-radius:8px; border:1px solid var(--border); cursor:pointer; }
+.photo-add { width:100%; aspect-ratio:1; border:2px dashed var(--border); border-radius:8px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text2); font-size:28px; transition:.2s; }
+.photo-add:hover { border-color:var(--accent); color:var(--accent); }
+
+/* Modal */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:200; align-items:center; justify-content:center; padding:16px; }
+.modal-overlay.show { display:flex; }
+.modal { background:#FFFFFF; border:1px solid var(--border); border-radius:var(--radius); padding:20px; max-width:700px; width:100%; max-height:85vh; overflow-y:auto; }
+.modal h2 { font-size:16px; margin-bottom:16px; }
+.modal-close { float:right; background:none; color:var(--text2); font-size:18px; cursor:pointer; }
+
+/* Cloud status */
+.cloud-status { font-size:10px; padding:2px 8px; border-radius:10px; display:inline-flex; align-items:center; gap:4px; }
+.cloud-status.synced { background:rgba(39,174,96,.2); color:#1E7E46; }
+.cloud-status.local { background:rgba(255,255,255,.2); color:rgba(255,255,255,.7); }
+.cloud-status .dot { width:6px; height:6px; border-radius:50%; background:currentColor; }
+
+/* Toast */
+.toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:var(--accent); color:#fff; padding:10px 20px; border-radius:20px; font-size:13px; font-weight:600; z-index:300; display:none; animation:fadeIn .3s; }
+@keyframes fadeIn { from{opacity:0;transform:translateX(-50%) translateY(10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+
+/* Spinner */
+.spinner { display:inline-block; width:18px; height:18px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .6s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+/* Section label */
+.section-label { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--accent); font-weight:700; margin-bottom:8px; }
+
+/* Print styles */
+@media print {
+  .header,.nav,.header-actions,.no-print { display:none!important; }
+  .card { border:1px solid #ccc; break-inside:avoid; box-shadow:none; }
+  .section { display:block!important; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-track { background:#F0EDEA; }
+::-webkit-scrollbar-thumb { background:#C0BAB3; border-radius:3px; }
+
+@media(max-width:768px) {
+  .main { padding:12px 8px 90px; }
+  .header { align-items:flex-start; flex-wrap:wrap; gap:10px; }
+  .header-brand { width:100%; }
+  .header-actions { width:100%; justify-content:flex-start; padding-bottom:2px; }
+  .header h1 { font-size:15px; }
+  .header-sub { font-size:9px; }
+}
+
+/* ICD-10 search combo */
+.icd-search-wrap { position:relative; }
+.icd-search-wrap input { padding-right:28px; }
+.icd-search-wrap .icd-clear { position:absolute; right:6px; top:50%; transform:translateY(-50%); background:none; color:var(--text3); font-size:16px; cursor:pointer; padding:2px 4px; line-height:1; display:none; }
+.icd-search-wrap input:not([value=""]) ~ .icd-clear,
+.icd-search-wrap input:focus ~ .icd-clear { display:block; }
+.icd-results { position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--border); border-top:none; border-radius:0 0 8px 8px; max-height:240px; overflow-y:auto; z-index:50; display:none; box-shadow:0 8px 24px rgba(0,0,0,.12); }
+.icd-results.show { display:block; }
+.icd-results .icd-item { padding:8px 12px; font-size:12px; cursor:pointer; border-bottom:1px solid rgba(0,0,0,.04); transition:background .15s; }
+.icd-results .icd-item:hover, .icd-results .icd-item.highlighted { background:var(--accent-glow); }
+.icd-results .icd-item .icd-code { font-weight:600; color:var(--accent); margin-right:6px; }
+.icd-results .icd-item .icd-desc { color:var(--text2); }
+.icd-results .icd-empty { padding:12px; font-size:12px; color:var(--text3); text-align:center; }
+.icd-results .icd-cat { padding:4px 12px; font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; background:var(--surface2); font-weight:600; }
+.icd-search-wrap .icd-selected { font-size:11px; color:var(--accent); margin-top:2px; font-weight:500; }
+
+/* Live condition + ICD-10 formulation */
+.dx-formulate-card { background:linear-gradient(135deg,rgba(43,95,92,.08),rgba(43,95,92,.02)); border:2px solid var(--accent); border-radius:10px; padding:12px 14px; margin-bottom:14px; }
+.dx-formulate-card .dx-f-head { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+.dx-formulate-card .dx-f-title { font-size:13px; font-weight:700; color:var(--accent); }
+.dx-formulate-card .dx-f-status { font-size:11px; font-weight:600; padding:3px 10px; border-radius:999px; }
+.dx-formulate-card .dx-f-status.suggested { background:#FEF3C7; color:#92400E; }
+.dx-formulate-card .dx-f-status.confirmed { background:#D1FAE5; color:#065F46; }
+.dx-formulate-card .dx-f-status.incomplete { background:#FEE2E2; color:#991B1B; }
+.dx-formulate-card .dx-f-hint { font-size:11px; color:var(--text3); margin:4px 0 8px; }
+.dx-formulate-card .dx-f-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+.dx-formulate-card .dx-f-actions button { font-size:12px; padding:7px 12px; border-radius:6px; border:1px solid var(--border); background:var(--surface); cursor:pointer; }
+.dx-formulate-card .dx-f-actions button.primary { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600; }
+.dx-formulate-card .dx-f-actions button:disabled { opacity:.45; cursor:not-allowed; }
+.dx-formulate-card .dx-f-ddx { margin-top:12px; padding-top:10px; border-top:1px dashed var(--border); }
+.dx-formulate-card .dx-f-ddx-head { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+.dx-formulate-card .dx-f-ddx-title { font-size:12px; font-weight:700; color:var(--text); }
+.dx-formulate-card .dx-f-ddx-meta { font-size:10px; color:var(--text3); }
+.dx-formulate-card .dx-f-ddx-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
+.dx-formulate-card .dx-f-ddx-item { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; padding:8px 10px; background:var(--surface); border:1px solid var(--border); border-radius:8px; }
+.dx-formulate-card .dx-f-ddx-item.dismissed { opacity:.45; text-decoration:line-through; }
+.dx-formulate-card .dx-f-ddx-main { flex:1; min-width:0; }
+.dx-formulate-card .dx-f-ddx-label { font-size:12px; font-weight:600; color:var(--text); }
+.dx-formulate-card .dx-f-ddx-code { font-size:11px; color:var(--accent); font-weight:600; margin-left:4px; }
+.dx-formulate-card .dx-f-ddx-src { display:block; font-size:10px; color:var(--text3); margin-top:2px; }
+.dx-formulate-card .dx-f-ddx-btns { display:flex; gap:4px; flex-shrink:0; flex-wrap:wrap; }
+.dx-formulate-card .dx-f-ddx-btns button { font-size:10px; padding:4px 8px; border-radius:5px; border:1px solid var(--border); background:var(--surface2,var(--surface)); cursor:pointer; white-space:nowrap; }
+.dx-formulate-card .dx-f-ddx-btns button.promote { background:var(--accent); color:#fff; border-color:var(--accent); }
+.dx-formulate-card .dx-f-ddx-add { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; align-items:center; }
+.dx-formulate-card .dx-f-ddx-add input { flex:1; min-width:140px; font-size:12px; padding:6px 8px; }
+.dx-formulate-card .dx-f-ddx-empty { font-size:11px; color:var(--text3); padding:4px 0; }
+
+
+/* Condition-specific exercise recommendations */
+.ex-recommended { background:rgba(43,95,92,.06); border:2px solid var(--accent); border-radius:10px; padding:16px; margin-bottom:16px; }
+.ex-recommended .ex-rec-title { font-size:13px; font-weight:700; color:var(--accent); margin-bottom:2px; display:flex; align-items:center; gap:6px; }
+.ex-recommended .ex-rec-subtitle { font-size:11px; color:var(--text2); margin-bottom:12px; }
+.ex-stage { margin-bottom:14px; }
+.ex-stage-header { display:flex; align-items:center; gap:8px; margin-bottom:6px; cursor:pointer; }
+.ex-stage-label { font-size:12px; font-weight:700; padding:3px 10px; border-radius:12px; color:#fff; }
+.ex-stage-label.acute { background:#C0392B; }
+.ex-stage-label.subacute { background:#E67E22; }
+.ex-stage-label.rehab { background:#2B5F5C; }
+.ex-stage-label.maintenance { background:#8E44AD; }
+.ex-stage-desc { font-size:11px; color:var(--text3); }
+.exercise-card.recommended { background:rgba(43,95,92,.08); border-color:var(--accent); position:relative; }
+.exercise-card.recommended::before { content:'★'; position:absolute; top:8px; right:10px; color:var(--accent); font-size:14px; }
+.exercise-card .ex-rx { font-size:11px; color:var(--accent); font-weight:500; margin-top:4px; }
+.ex-divider { border:none; border-top:1px dashed var(--border); margin:16px 0 12px; }
+.ex-divider-label { font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
+
+/* Dermatome reference and patient referral images - V4.2.5 */
+.derm-image-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+.derm-image-card { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:10px; }
+.derm-image-card img { width:100%; max-height:420px; object-fit:contain; background:#fff; border:1px solid var(--border); border-radius:8px; display:block; }
+@media(max-width:700px) { .derm-image-grid { grid-template-columns:1fr; } .derm-image-card img { max-height:none; } }
+
+
+
+/* V4.5.4 top dictation control and floating panel: isolated from original section/exam renderer */
+#dictFloatPanel {
+  position: fixed; right: 18px; top: 84px; width: min(420px, calc(100vw - 36px));
+  max-height: calc(100vh - 102px); overflow: auto; z-index: 9999;
+  background: var(--surface); color: var(--text); border: 1px solid var(--border);
+  border-radius: 16px; box-shadow: 0 16px 48px rgba(0,0,0,.35); display: none;
+}
+#dictFloatPanel.open { display: block; }
+.dict-float-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:12px 14px; border-bottom:1px solid var(--border); }
+.dict-float-body { padding: 12px 14px; }
+.dict-float-row { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0; }
+.dict-float-row button, #dictFloatPanel select {
+  border:1px solid var(--border); background:var(--surface2); color:var(--text); border-radius:8px; padding:8px 10px; cursor:pointer; font-size:12px;
+}
+#dictFloatPanel textarea { width:100%; min-height:88px; box-sizing:border-box; }
+#dictFloatStatus { font-size: 12px; color: var(--text2); margin-top: 6px; }
+#dictFloatLog { font-size: 11px; color: var(--text3); margin-top: 8px; max-height: 90px; overflow:auto; border-top:1px solid var(--border); padding-top:8px; }
+.dict-badge { display:inline-block; padding:2px 7px; border-radius:999px; background:var(--surface2); border:1px solid var(--border); color:var(--text2); font-size:11px; }
+
+/* Additive sequential navigation; injected at the bottom of the active section. */
+.section-next-nav { display:flex; justify-content:flex-end; clear:both; margin:20px 0 4px; }
+.section-next-button {
+  min-width:220px; display:flex; align-items:center; justify-content:space-between; gap:16px;
+  padding:11px 15px; border-radius:10px; background:var(--accent); color:#fff;
+  box-shadow:0 5px 16px rgba(43,95,92,.22); text-align:left; transition:.2s;
+}
+.section-next-button:hover { background:var(--accent2); transform:translateY(-1px); }
+.section-next-button:active { transform:translateY(0); }
+.section-next-button .next-caption { display:block; font-size:10px; line-height:1.15; color:rgba(255,255,255,.75); text-transform:uppercase; letter-spacing:.7px; }
+.section-next-button .next-name { display:block; margin-top:2px; font-size:13px; line-height:1.2; font-weight:700; }
+.section-next-button .next-arrow { font-size:20px; line-height:1; }
+
+#freeNoteCanvas { width:100%; height:260px; border:1px solid var(--border); border-radius:12px; background:#fff; touch-action:none; display:block; }
+.free-notes-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.free-notes-actions button { background:var(--surface2); color:var(--text); border:1px solid var(--border); padding:7px 12px; border-radius:8px; font-size:12px; }
+.free-notes-actions button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+#freeNotesStatus { font-size:12px; color:var(--text3); margin-top:8px; }
+
+/* Medication history — isolated from the Examination renderer */
+.med-db-note { font-size:11px; color:var(--text3); margin:-2px 0 10px; line-height:1.45; }
+.med-entry { position:relative; margin:0 0 10px; padding:12px; border:1px solid var(--border); border-radius:10px; background:var(--surface2); }
+.med-entry .med-name-wrap { grid-column:span 2; }
+.med-entry .med-remove { position:absolute; top:8px; right:8px; width:28px; height:28px; padding:0; border-radius:7px; background:var(--red); color:#fff; font-size:13px; }
+.med-entry .med-top { padding-right:34px; }
+.med-match-line { min-height:20px; margin-top:8px; font-size:11px; color:var(--text3); display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.med-match-ok { color:var(--green); font-weight:600; }
+.med-match-custom { color:var(--yellow); font-weight:600; }
+.med-match-duplicate { color:var(--red); font-weight:700; }
+.med-flag { display:inline-block; padding:3px 7px; border-radius:999px; border:1px solid #F59E0B; background:#FFF7ED; color:#9A3412; font-size:10px; line-height:1.2; }
+.med-safety-summary { display:none; margin:10px 0 0; padding:9px 10px; border-radius:8px; border:1px solid #F59E0B; background:#FFFBEB; color:#78350F; font-size:11px; line-height:1.45; }
+.med-empty-note { padding:10px; border:1px dashed var(--border); border-radius:8px; color:var(--text3); font-size:11px; }
+.med-interaction-panel { margin:10px 0 0; padding:10px; border:1px solid var(--border); border-radius:9px; background:var(--surface2); font-size:11px; line-height:1.45; }
+.med-interaction-panel.clear { border-color:#86EFAC; background:#F0FDF4; color:#166534; }
+.med-interaction-panel.neutral { color:var(--text3); }
+.med-interaction-title { font-weight:700; font-size:12px; margin-bottom:6px; }
+.med-interaction-item { margin-top:7px; padding:8px 9px; border-left:4px solid; border-radius:6px; background:var(--surface); }
+.med-interaction-item.serious { border-color:#DC2626; background:#FEF2F2; color:#7F1D1D; }
+.med-interaction-item.review { border-color:#F97316; background:#FFF7ED; color:#7C2D12; }
+.med-interaction-item.caution { border-color:#EAB308; background:#FEFCE8; color:#713F12; }
+.med-interaction-severity { display:inline-block; margin-right:5px; padding:2px 6px; border-radius:999px; font-size:9px; font-weight:800; letter-spacing:.35px; text-transform:uppercase; background:rgba(255,255,255,.7); }
+.med-interaction-meds { font-weight:700; margin:3px 0; }
+.med-interaction-action { margin-top:3px; font-weight:600; }
+.med-interaction-limit { margin-top:8px; color:var(--text3); font-size:10px; }
+.med-interaction-tools { display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
+.med-interaction-tools button { padding:6px 9px; border-radius:7px; border:1px solid var(--accent); background:var(--surface); color:var(--accent); font-size:10px; font-weight:700; }
+.med-condition-link { margin:0 0 10px; padding:9px 10px; border:1px solid rgba(43,95,92,.3); border-radius:9px; background:rgba(43,95,92,.06); }
+.med-condition-link-title { color:var(--accent); font-size:11px; font-weight:700; margin-bottom:6px; }
+.med-linked-sections { display:flex; flex-wrap:wrap; gap:6px; align-items:center; color:var(--text3); font-size:11px; }
+.med-linked-section { border:1px solid var(--accent); border-radius:999px; background:var(--surface); color:var(--accent); padding:5px 9px; font-size:11px; font-weight:600; cursor:pointer; }
+.med-linked-section:active { background:var(--accent); color:#fff; }
+@media(max-width:600px) { .med-entry .med-name-wrap { grid-column:span 1; } }
+
+</style>
+<script src="./p1-rom-data.js"></script>
+<script src="./p1-rom-figure.js"></script>
+<link rel="stylesheet" href="./p1-a11y.css"><!-- P1 v6 audit: iPad tap targets + focus ring -->
+</head>
+<body>
+
+<div class="header">
+  <div class="header-brand">
+    <div class="header-logo"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjExMiIgZmlsbD0iIzJCNUY1QyIvPjxwYXRoIGQ9Ik0zNjIuMSwxNDkuOSBBMTUwLjAsMTUwLjAgMCAxLDAgMzYyLjEsMzYyLjEiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI0Y3RjVGMiIgc3Ryb2tlLXdpZHRoPSI0NC4wIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNMzE0LjMsMTk3LjcgQTgyLjUsODIuNSAwIDEsMCAzMTQuMywzMTQuMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRjdGNUYyIiBzdHJva2Utd2lkdGg9IjQ0LjAiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxjaXJjbGUgY3g9IjI1NiIgY3k9IjI1NiIgcj0iMjQuMiIgZmlsbD0iI0Y3RjVGMiIvPjwvc3ZnPg==" alt="Logo"></div>
+    <div>
+      <h1 id="hdrName">ChiroClinic</h1>
+      <div class="header-sub"><span id="hdrSub"></span>
+        <span class="cloud-status local" id="cloudStatus"><span class="dot"></span> Local</span>
+      </div>
+    </div>
+  </div>
+  <div class="header-actions no-print">
+    <button data-cc-click="window.location.href='./diary.html'" title="Open diary">📅 Diary</button>
+    <button id="dictFloatToggle" type="button" data-cc-click="toggleFloatingDictation()" title="Open dictation" aria-expanded="false">🎙 Dictation</button>
+    <button data-cc-click="saveJSON()" title="Save patient file to device">💾 Save</button>
+    <button data-cc-click="loadJSON()" title="Load patient file from device">📂 Load</button>
+    <button data-cc-click="loadEzmedIntake()" title="Import Patient Intake" style="background:rgba(39,174,96,.35);border-color:rgba(39,174,96,.5)">📥 Intake</button>
+    <button data-cc-click="showCloudModal()" title="Cloud Sync">☁️ Cloud</button>
+    <button data-cc-click="showProfileModal()" title="Practitioner Profile">⚙️ Profile</button>
+    <button class="primary" data-cc-click="exportPDF()" title="Export PDF">📄 PDF</button>
+  </div>
+</div>
+
+<div class="nav no-print" id="mainNav">
+  <button class="active" data-tab="patient">Patient</button>
+  <button data-tab="history">History</button>
+  <button data-tab="freenotes">Free Notes</button>
+  <button data-tab="bodymap">Body Map</button>
+  <button data-tab="exam">Examination</button>
+  <button data-tab="photos">Photos</button>
+  <button data-tab="exercises">Exercises</button>
+  <button data-tab="iceheat">Ice/Heat</button>
+  <button data-tab="imaging">Imaging</button>
+  <button data-tab="cert">Certificate</button>
+  <button data-tab="report">AI Report</button>
+</div>
+
+<div class="main">
+
+<!-- ============ PATIENT INFO ============ -->
+<div class="section active" id="sec-patient">
+  <div class="card" id="patientSearchCard">
+    <div class="card-title"><span class="icon">🔍</span> Find Existing Patient</div>
+    <div style="position:relative">
+      <input id="patientSearch" placeholder="Search name or DOB (local registry)…" data-cc-input="patientSearchInput()" data-cc-focus="patientSearchInput()" autocomplete="off">
+      <div id="patientSearchResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:8px;margin-top:4px;max-height:240px;overflow-y:auto;z-index:50;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div>
+    </div>
+    <p style="font-size:11px;color:var(--text3);margin-top:6px">Local registry first (works without Firebase). Leave blank for a new patient.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">👤</span> Patient Information</div>
+    <div class="grid2">
+      <div><label>First Name</label><input id="ptFirstName" placeholder="First name"></div>
+      <div><label>Last Name</label><input id="ptLastName" placeholder="Last name"></div>
+      <div><label>Date of Birth</label><input type="date" id="ptDOB"></div>
+      <div><label>ID Number</label><input id="ptID" placeholder="SA ID number"></div>
+      <div><label>Gender</label>
+        <select id="ptGender"><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select>
+      </div>
+      <div><label>Phone</label><input type="tel" id="ptPhone" placeholder="Cell number"></div>
+      <div><label>Email</label><input type="email" id="ptEmail" placeholder="patient@email.com"></div>
+      <div><label>Medical Aid</label><input id="ptMedAid" placeholder="Medical aid name"></div>
+      <div><label>Medical Aid Number</label><input id="ptMedAidNo" placeholder="Membership number"></div>
+      <div><label>File Number</label><input id="ptFileNo" placeholder="Practice file #"></div>
+    </div>
+  </div>
+
+  <div id="prevVisitSummary" class="card" style="display:none;background:#EFF6FF;border-color:#BFDBFE">
+    <div class="card-title"><span class="icon" style="background:#2563EB">📋</span> Previous Visits</div>
+    <div id="prevVisitSummaryContent" style="font-size:12px"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">📋</span> Visit Type</div>
+    <div class="chip-group">
+      <span class="chip active" data-cc-click="setVisitType('new',this)">New Visit</span>
+      <span class="chip" data-cc-click="setVisitType('followup',this)">Follow-up</span>
+    </div>
+    <div id="followupLoad" style="display:none;margin-top:10px">
+      <label>Load Previous Visit Data</label>
+      <select id="prevVisitSelect" data-cc-change="loadPreviousVisit()"><option value="">— Select previous visit —</option></select>
+      <p class="prev-val" style="margin-top:6px">Previous values will display in <strong style="color:var(--prev)">blue</strong> for comparison</p>
+    </div>
+    <div class="grid2" style="margin-top:10px">
+      <div><label>Visit Date</label><input type="date" id="visitDate"></div>
+      <div><label>Case #</label><input id="caseNo" placeholder="Case number"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">🩺</span> Primary Complaint</div>
+    <div class="grid2">
+      <div><label>Primary Location / Region</label>
+        <select id="pcRegion">
+          <option value="">Select</option>
+          <option>Cervical Spine</option><option>Thoracic Spine</option><option>Lumbar Spine</option>
+          <option>Pelvis/SI</option><option>Hip</option><option>Shoulder</option><option>Elbow</option>
+          <option>Wrist/Fingers</option><option>Knee</option><option>Ankle/Foot</option>
+        </select>
+      </div>
+      <div><label>Side</label>
+        <select id="pcSide"><option value="">Select</option><option>Right</option><option>Left</option><option>Both</option><option>Central</option></select>
+      </div>
+      <div><label>Onset</label><input type="date" id="pcOnset"></div>
+      <div><label>Duration</label><input id="pcDuration" placeholder="e.g. 3 weeks"></div>
+      <div><label>Frequency</label><input id="pcFrequency" placeholder="Constant / Intermittent"></div>
+      <div><label>Previous Treatment</label><input id="pcPrevTx" placeholder="Previous treatment received"></div>
+      <div><label>Date of Previous Treatment</label><input type="date" id="pcPrevTxDate"></div>
+      <div><label>Number of Previous Treatments</label><input type="number" id="pcPrevTxCount" placeholder="0"></div>
+    </div>
+    <div style="margin-top:10px">
+      <label>Response to Previous Treatment</label>
+      <select id="pcPrevResponse" style="max-width:300px">
+        <option value="">Select</option><option>Much Improved</option><option>Improved</option><option>No Change</option><option>Worse</option><option>N/A</option>
+      </select>
+    </div>
+    <div style="margin-top:10px">
+      <label>Red Flag Signs</label>
+      <div class="chip-group" id="redFlags">
+        <span class="chip" data-val="Intractable pain" data-cc-click="toggleChip(this)">Intractable pain</span>
+        <span class="chip" data-val="Drop attacks" data-cc-click="toggleChip(this)">Drop attacks</span>
+        <span class="chip" data-val="Altered gait" data-cc-click="toggleChip(this)">Altered gait</span>
+        <span class="chip" data-val="Clumsy hands" data-cc-click="toggleChip(this)">Clumsy hands</span>
+        <span class="chip" data-val="Bladder/Sphincter" data-cc-click="toggleChip(this)">Bladder/Sphincter</span>
+        <span class="chip" data-val="Ataxia" data-cc-click="toggleChip(this)">Ataxia</span>
+        <span class="chip" data-val="Hyperreflexia" data-cc-click="toggleChip(this)">Hyperreflexia</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">🔍</span> Exam Regions to Assess</div>
+    <p style="font-size:11px;color:var(--text3);margin-bottom:8px">Select which regions to examine — each will get a full SOAP note</p>
+    <div class="chip-group" id="examRegionSelect">
+      <span class="chip" data-region="cs" data-cc-click="toggleExamRegion(this)">C/S</span>
+      <span class="chip" data-region="ts" data-cc-click="toggleExamRegion(this)">T/S</span>
+      <span class="chip" data-region="ls" data-cc-click="toggleExamRegion(this)">L/S</span>
+      <span class="chip" data-region="pelvis" data-cc-click="toggleExamRegion(this)">Pelvis/SI</span>
+      <span class="chip" data-region="hip" data-cc-click="toggleExamRegion(this)">Hip</span>
+      <span class="chip" data-region="shoulder" data-cc-click="toggleExamRegion(this)">Shoulder</span>
+      <span class="chip" data-region="elbow" data-cc-click="toggleExamRegion(this)">Elbow</span>
+      <span class="chip" data-region="wrist" data-cc-click="toggleExamRegion(this)">Wrist/Fingers</span>
+      <span class="chip" data-region="knee" data-cc-click="toggleExamRegion(this)">Knee</span>
+      <span class="chip" data-region="ankle" data-cc-click="toggleExamRegion(this)">Ankle/Foot</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============ HISTORY ============ -->
+<div class="section" id="sec-history">
+  <div class="card">
+    <div class="card-title"><span class="icon">💊</span> Current Medications</div>
+    <p class="med-db-note"><span id="medDbStatus">Loading medication database…</span> Search by generic or common brand name. Custom entries are always allowed. Confirm the exact product and dose; this is a recording aid, not a prescribing or interaction checker.</p>
+    <div id="medConditionLink" class="med-condition-link">
+      <div class="med-condition-link-title">Linked to Medical Conditions</div>
+      <div id="medLinkedSections" class="med-linked-sections">Select conditions below to display the matching medication sections.</div>
+    </div>
+    <div id="medList"></div>
+    <datalist id="medicationOptions"></datalist>
+    <button type="button" data-cc-click="addMedRow()" style="margin-top:8px;background:var(--accent);color:#fff;padding:7px 14px;border-radius:6px;font-size:12px">+ Add Medication / Supplement</button>
+    <div id="medInteractionChecker" class="med-interaction-panel neutral" aria-live="polite"></div>
+    <div id="medSafetySummary" class="med-safety-summary"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">⚕️</span> Medical Conditions</div>
+    <div class="chip-group" id="conditions">
+      <span class="chip" data-val="Hypertension" data-cc-click="toggleChip(this)">Blood Pressure / Hypertension</span>
+      <span class="chip" data-val="Diabetes" data-cc-click="toggleChip(this)">Sugar / Diabetes</span>
+      <span class="chip" data-val="Heart Disease" data-cc-click="toggleChip(this)">Heart / Cardiac</span>
+      <span class="chip" data-val="High Cholesterol" data-cc-click="toggleChip(this)">Cholesterol</span>
+      <span class="chip" data-val="Anticoagulant / Clotting Condition" data-cc-click="toggleChip(this)">Blood Thinners / Clotting</span>
+      <span class="chip" data-val="Asthma" data-cc-click="toggleChip(this)">Respiratory / Asthma</span>
+      <span class="chip" data-val="COPD / Allergy" data-cc-click="toggleChip(this)">COPD / Allergy</span>
+      <span class="chip" data-val="Thyroid" data-cc-click="toggleChip(this)">Thyroid / Endocrine</span>
+      <span class="chip" data-val="Gastrointestinal / Reflux" data-cc-click="toggleChip(this)">Stomach / Reflux</span>
+      <span class="chip" data-val="Epilepsy" data-cc-click="toggleChip(this)">Neurology / Epilepsy</span>
+      <span class="chip" data-val="Parkinsonism" data-cc-click="toggleChip(this)">Parkinsonism</span>
+      <span class="chip" data-val="Migraine / Neuropathic Pain" data-cc-click="toggleChip(this)">Migraine / Nerve Pain</span>
+      <span class="chip" data-val="Vertigo / Nausea" data-cc-click="toggleChip(this)">Vertigo / Nausea</span>
+      <span class="chip" data-val="Depression/Anxiety" data-cc-click="toggleChip(this)">Mental Health / Sleep</span>
+      <span class="chip" data-val="Arthritis" data-cc-click="toggleChip(this)">Arthritis / Pain</span>
+      <span class="chip" data-val="Rheumatoid Arthritis" data-cc-click="toggleChip(this)">Rheumatoid / Autoimmune</span>
+      <span class="chip" data-val="Osteoporosis" data-cc-click="toggleChip(this)">Bone Health / Osteoporosis</span>
+      <span class="chip" data-val="Cancer" data-cc-click="toggleChip(this)">Cancer / Oncology</span>
+      <span class="chip" data-val="Stroke" data-cc-click="toggleChip(this)">Stroke</span>
+      <span class="chip" data-val="Kidney / Urology" data-cc-click="toggleChip(this)">Kidney / Urology</span>
+      <span class="chip" data-val="Pregnancy" data-cc-click="toggleChip(this)">Pregnancy / Women’s Health</span>
+      <span class="chip" data-val="HIV/AIDS" data-cc-click="toggleChip(this)">HIV / Antiretrovirals</span>
+      <span class="chip" data-val="Tuberculosis" data-cc-click="toggleChip(this)">Tuberculosis</span>
+      <span class="chip" data-val="Fibromyalgia" data-cc-click="toggleChip(this)">Fibromyalgia</span>
+    </div>
+    <div style="margin-top:8px"><label>Other Conditions</label><input id="condOther" placeholder="Specify other conditions"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">⚠️</span> Allergies</div>
+    <input id="allergies" placeholder="List allergies (e.g. Penicillin, Latex, Ibuprofen)">
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">🔪</span> Surgical History</div>
+    <textarea id="surgHx" placeholder="List previous surgeries with dates&#10;e.g. Appendectomy — 2015, L5/S1 Discectomy — 2020"></textarea>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">👪</span> Family History</div>
+    <textarea id="famHx" placeholder="Family medical history&#10;e.g. Father — Hypertension, Mother — Diabetes"></textarea>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">🏃</span> Social History</div>
+    <div class="grid2">
+      <div><label>Smoking</label>
+        <select id="shSmoking"><option>Non-smoker</option><option>Current smoker</option><option>Ex-smoker</option></select>
+      </div>
+      <div><label>Alcohol</label>
+        <select id="shAlcohol"><option>None</option><option>Social</option><option>Moderate</option><option>Heavy</option></select>
+      </div>
+      <div><label>Exercise</label>
+        <select id="shExercise"><option>Sedentary</option><option>Light</option><option>Moderate</option><option>Active</option></select>
+      </div>
+      <div><label>Occupation</label><input id="shOccupation" placeholder="Job title / description"></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============ FREE NOTES ============ -->
+<div class="section" id="sec-freenotes">
+  <div class="card">
+    <div class="card-title"><span class="icon">📝</span> Free Clinical Notes</div>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:10px">Use this for patient-history or exam details not covered by the structured fields. It is isolated from the Examination renderer.</p>
+    <label>Typed / dictated free note</label>
+    <textarea id="freeNotesText" rows="8" placeholder="Type, paste, or use the keyboard microphone. Example:
+Occupation: fisherman
+Allergies: penicillin
+Duration: 3 weeks
+Previous treatment: GP medication, no improvement
+Red flags: altered gait
+Specific note: symptoms worse after standing and walking"></textarea>
+    <div class="free-notes-actions">
+      <button class="primary" type="button" data-cc-click="startFreeNotesDictation()">🎙 Dictate Free Note</button>
+      <button type="button" data-cc-click="stopFreeNotesDictation()">Stop</button>
+      <button type="button" data-cc-click="saveFreeNotes()">Save Notes</button>
+      <button type="button" data-cc-click="populateFieldsFromFreeNotes()">Populate Matching Fields</button>
+      <button type="button" data-cc-click="appendFreeNotesToReport()">Add to AI Report Notes</button>
+    </div>
+    <div id="freeNotesStatus">Ready. On iPad, the keyboard microphone also works inside the text box.</div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="icon">✍️</span> Stylus / Apple Pencil Notes</div>
+    <canvas id="freeNoteCanvas" width="900" height="300"></canvas>
+    <div class="free-notes-actions">
+      <button type="button" data-cc-click="clearFreeNoteCanvas()">Clear writing area</button>
+      <button type="button" data-cc-click="saveFreeNotes()">Save writing</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ BODY MAP ============ -->
+<div class="section" id="sec-bodymap">
+  <div class="card">
+    <div class="card-title"><span class="icon">🎨</span> Pain Distribution Body Map</div>
+    <div class="paint-tools">
+      <button class="active" data-cc-click="setPaintColor('#E74C3C',this)" style="background:#E74C3C;color:#000;font-size:11px">Pain</button>
+      <button data-cc-click="setPaintColor('#9B59B6',this)" style="background:#9B59B6;color:#000;font-size:11px"><span style="background:#fff;color:#000;padding:0 4px;border-radius:4px">Referral</span></button>
+      <button data-cc-click="setPaintColor('#3498DB',this)" style="background:#3498DB;color:#000;font-size:11px">Numb</button>
+      <button data-cc-click="setPaintColor('#E67E22',this)" style="background:#E67E22;color:#000;font-size:11px">Tingling</button>
+      <button data-cc-click="setPaintColor('#27AE60',this)" style="background:#27AE60;color:#000;font-size:11px">Stiffness</button>
+      <label style="margin:0;color:var(--text);font-size:11px">Size:
+        <input type="range" min="4" max="30" value="12" data-cc-input="paintSize=+this.value" style="width:70px;padding:0">
+      </label>
+      <button data-cc-click="clearBodyMap()" style="background:#C0392B;color:#fff;font-size:11px">Clear</button>
+    </div>
+    <div class="body-map-container">
+      <canvas id="bodyCanvas" width="620" height="560"></canvas>
+    </div>
+    <p style="font-size:11px;color:var(--text3);margin-top:6px">Draw on the body to mark pain distribution areas. Use colours for different symptom types.</p>
+  </div>
+</div>
+
+<!-- ============ EXAMINATION ============ -->
+<div class="section" id="sec-exam">
+  <div class="card" style="padding:8px 12px">
+    <div class="region-tabs" id="regionTabs"></div>
+  </div>
+  <div id="examContent"></div>
+</div>
+
+<!-- ============ PHOTOS ============ -->
+<div class="section" id="sec-photos">
+  <div class="card">
+    <div class="card-title"><span class="icon">📷</span> Clinical Photos</div>
+    <div class="photo-grid" id="photoGrid">
+      <div class="photo-add" data-cc-click="document.getElementById('photoInput').click()">+</div>
+    </div>
+    <input type="file" id="photoInput" accept="image/*" capture="environment" multiple style="display:none" data-cc-change="handlePhotos(event)">
+    <div style="margin-top:8px"><label>Photo Notes</label><textarea id="photoNotes" placeholder="Clinical photo descriptions / observations"></textarea></div>
+  </div>
+</div>
+
+<!-- ============ EXERCISES ============ -->
+<div class="section" id="sec-exercises">
+  <div class="card">
+    <div class="card-title"><span class="icon">🏋️</span> Exercise Prescription</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:10px">Exercises are suggested from the current examination: region, side, duration, symptoms, neurological findings and ICD-10 codes. Edit freely before sending.</p>
+    <div class="soap-tabs" style="max-width:720px">
+      <div class="soap-tab active" data-cc-click="showExCat('stretch',this)">Stretching</div>
+      <div class="soap-tab" data-cc-click="showExCat('strength',this)">Strengthening</div>
+      <div class="soap-tab" data-cc-click="showExCat('mobility',this)">Mobility</div>
+      <div class="soap-tab" data-cc-click="showExCat('nerve',this)">Nerve Glides</div>
+      <div class="soap-tab" data-cc-click="showExCat('custom',this)">Custom</div>
+      <div class="soap-tab" data-cc-click="showExCat('selected',this)">Selected</div>
+    </div>
+    <div class="grid3" style="margin-bottom:12px">
+      <div><label>Target Region</label>
+        <select id="exRegion" data-cc-change="renderExercises()">
+          <option>Cervical</option><option>Thoracic</option><option>Lumbar</option><option>Pelvis/SI</option>
+          <option>Shoulder</option><option>Elbow</option><option>Wrist/Fingers</option><option>Hip</option>
+          <option>Knee</option><option>Ankle/Foot</option><option>General Neural</option><option>Vestibular/Balance</option>
+        </select>
+      </div>
+      <div><label>Condition Duration / Phase</label>
+        <select id="exDurationOverride" data-cc-change="renderExercises()">
+          <option value="auto">Auto from examination</option>
+          <option value="acute">Acute: 0–7 days</option>
+          <option value="early_subacute">Early subacute: 1–3 weeks</option>
+          <option value="subacute">Subacute: 3–6 weeks</option>
+          <option value="chronic">Chronic: >6 weeks</option>
+          <option value="flare">Flare-up of chronic condition</option>
+          <option value="protected">Post-op / protected</option>
+        </select>
+      </div>
+      <div><label>Selection Mode</label>
+        <select id="exSelectionMode" data-cc-change="renderExercises()">
+          <option value="smart">Smart recommendations first</option>
+          <option value="all">Show all for region</option>
+          <option value="caution">Low irritability only</option>
+        </select>
+      </div>
+    </div>
+    <div id="exerciseDrivers" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:12px;font-size:12px;color:var(--text2)"></div>
+    <div id="exerciseList"></div>
+    <div class="card" style="background:var(--surface2);margin-top:12px">
+      <div class="card-title"><span class="icon">✍️</span> Patient-specific custom exercises</div>
+      <div id="customExerciseRows"></div>
+      <button data-cc-click="addCustomExerciseRow()" style="background:var(--accent);color:#fff;padding:7px 14px;border-radius:6px;font-size:12px">+ Add Custom Exercise for This Patient</button>
+      <button data-cc-click="saveCustomExercisesToLibrary()" style="background:var(--surface);color:var(--accent);border:1px solid var(--accent);padding:7px 14px;border-radius:6px;font-size:12px;margin-left:6px">Save custom to browser library</button>
+    </div>
+    <div style="margin-top:12px">
+      <label>Custom Instructions / Stop Rules to Patient</label>
+      <textarea id="exCustomInstructions" rows="4" placeholder="Add patient-specific warnings, stop rules, work/sport advice, progression/regression notes..."></textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button data-cc-click="emailExercises()" style="background:var(--accent);color:#fff;padding:8px 16px;border-radius:6px;font-size:13px">📧 Email / Share Exercise Programme</button>
+        <button data-cc-click="copyExerciseEmailText()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);padding:8px 16px;border-radius:6px;font-size:13px">📋 Copy Email Text</button>
+        <button data-cc-click="showExCat('selected')" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);padding:8px 16px;border-radius:6px;font-size:13px">✅ Review Selected</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ICE/HEAT ============ -->
+<div class="section" id="sec-iceheat">
+  <div class="card">
+    <div class="card-title"><span class="icon">🧊</span> Ice / Heat Instructions</div>
+    <div class="grid2">
+      <div><label>Modality</label>
+        <select id="ihModality" data-cc-change="renderIceHeatPreview()"><option>Ice</option><option>Heat</option><option>Contrast (Ice then Heat)</option></select>
+      </div>
+      <div><label>Area</label>
+        <select id="ihArea" data-cc-change="onIceHeatAreaChange()">
+          <option>Cervical</option><option>Thoracic Spine</option><option>Lumbar Spine</option><option>Shoulder</option>
+          <option>Elbow</option><option>Wrist</option><option>Knee</option><option>ITB</option><option>Ankle</option>
+          <option>Achilles</option><option>Calf</option><option>Hamstring</option><option>SI/Pelvis</option>
+        </select>
+      </div>
+      <div id="ihSideRow"><label>Side</label>
+        <select id="ihSide" data-cc-change="renderIceHeatPreview()"><option>Left</option><option>Right</option></select>
+      </div>
+      <div id="ihVariantRow" style="display:none"><label>Elbow Aspect</label>
+        <select id="ihVariant" data-cc-change="renderIceHeatPreview()"><option>Posterior</option><option>Medial</option><option>Lateral</option></select>
+      </div>
+      <div><label>Duration</label>
+        <select id="ihDuration"><option>10 minutes</option><option>15 minutes</option><option>20 minutes</option><option>30 minutes</option></select>
+      </div>
+      <div><label>Frequency</label>
+        <select id="ihFreq"><option>Every 2 hours</option><option>Every 4 hours</option><option>3x daily</option><option>2x daily</option><option>As needed</option></select>
+      </div>
+    </div>
+    <div id="ihPreviewWrap" style="margin-top:14px;display:grid;grid-template-columns:minmax(220px,320px) 1fr;gap:14px;align-items:start">
+      <div id="ihImageBox" style="position:relative;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center;cursor:pointer;overflow:hidden" data-cc-click="openIceHeatModal()">
+        <div id="ihImageLabel" style="position:absolute;z-index:2;top:14px;left:14px;background:rgba(17,24,39,.88);color:#fff;border-radius:5px;padding:5px 8px;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;display:none"></div>
+        <img id="ihImage" alt="Ice/Heat placement" style="width:100%;max-height:420px;object-fit:contain;border-radius:6px;display:none">
+        <div id="ihImageEmpty" style="color:var(--text3);font-size:12px;padding:24px 8px">No image for this selection</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:6px">Tap image to enlarge</div>
+      </div>
+      <div id="ihDescription" style="font-size:13px;line-height:1.5;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px"></div>
+    </div>
+    <div style="margin-top:12px">
+      <label>Custom Instructions</label>
+      <textarea id="ihCustom" rows="3" placeholder="Type your custom ice/heat instructions here..."></textarea>
+      <button data-cc-click="emailIceHeat()" style="margin-top:8px;background:var(--accent);color:#fff;padding:8px 16px;border-radius:6px;font-size:13px">📧 Email Instructions to Patient</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ AI REPORT ============ -->
+<!-- ============ IMAGING REFERRAL ============ -->
+<div class="section" id="sec-imaging">
+  <div class="card">
+    <div class="card-title"><span class="icon">🩻</span> Radiology / Imaging Referral</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Auto-populated from patient notes and active examination regions. Modality and views are suggested from ICD-10 codes — adjust as clinically indicated.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <button data-cc-click="refreshImagingFromNotes()" style="background:var(--accent);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600">↻ Refresh from Notes</button>
+      <button data-cc-click="printImagingReferral()" style="background:var(--accent2);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600">🖨 Print / Save Referral</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Referral Details</div>
+    <div class="grid">
+      <div><label>Referral Date</label><input type="date" id="imgRefDate"></div>
+      <div><label>Practice Location</label>
+        <select id="imgPractice">
+          <option value="">— Auto-detect —</option>
+          <option>Melkbosstrand Chiropractic</option>
+          <option>Vredenburg Practice</option>
+        </select>
+      </div>
+      <div><label>Urgency</label>
+        <select id="imgUrgency">
+          <option>Routine</option>
+          <option>Urgent (within 7 days)</option>
+          <option>Emergency (immediate)</option>
+        </select>
+      </div>
+      <div><label>Radiology Practice</label>
+        <select id="imgRadPractice" data-cc-change="onRadPracticeChange()">
+          <option value="">— Select practice —</option>
+          <option value="SCP Radiology">SCP Radiology</option>
+          <option value="Morton &amp; Partners Radiologists">Morton &amp; Partners</option>
+          <option value="Bergman Ross &amp; Partners Radiologists">Bergman Ross &amp; Partners (BRP)</option>
+          <option value="Drs Visser, Erasmus, Vawda &amp; Partners">Visser, Erasmus, Vawda &amp; Partners</option>
+          <option value="Lake Smit and Partners">Lake Smit &amp; Partners</option>
+          <option value="The Radiologist">Other / unspecified</option>
+        </select>
+      </div>
+      <div style="grid-column:1/-1"><label>Referred To <span style="font-weight:400;color:var(--text3);font-size:11px">— editable</span></label><input id="imgReferredTo" placeholder="Radiology practice / specific radiologist (optional)"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Patient Summary <span style="font-weight:400;color:var(--text3);font-size:11px">— pulled from Patient Info tab</span></div>
+    <div id="imgPatientSummary" style="font-size:13px;line-height:1.6;background:var(--surface2);padding:10px 12px;border-radius:8px;border:1px solid var(--border)">
+      <em style="color:var(--text3)">Click "Refresh from Notes" to auto-fill patient details.</em>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Working Diagnoses <span style="font-weight:400;color:var(--text3);font-size:11px">— from active exam regions</span></div>
+    <div id="imgDxList" style="font-size:13px">
+      <em style="color:var(--text3)">No diagnoses pulled yet.</em>
+    </div>
+    <div id="imgExtCauseRow" style="margin-top:10px;display:none">
+      <label>External Cause Code <span style="font-weight:400;color:var(--text3);font-size:11px">— required for S-codes</span></label>
+      <input id="imgExtCause" placeholder="e.g. W18.30XA — Fall on same level, V03.10XA — Pedestrian struck by car">
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Imaging Request</div>
+    <div class="grid">
+      <div><label>Modality</label>
+        <select id="imgModality" data-cc-change="onModalityChange()">
+          <option value="">Select modality</option>
+          <option>X-ray (Plain Radiograph)</option>
+          <option>Ultrasound</option>
+          <option>MRI</option>
+          <option>CT</option>
+          <option>Bone Scan (Nuclear)</option>
+          <option>DEXA</option>
+        </select>
+      </div>
+      <div><label>Region</label><input id="imgRegion" placeholder="e.g. Cervical Spine"></div>
+      <div><label>Side</label>
+        <select id="imgSide">
+          <option value="">N/A</option>
+          <option>Right</option>
+          <option>Left</option>
+          <option>Both</option>
+          <option>Bilateral</option>
+        </select>
+      </div>
+      <div><label>Contrast</label>
+        <select id="imgContrast">
+          <option>Not required</option>
+          <option>IV contrast (CT)</option>
+          <option>Gadolinium (MRI)</option>
+          <option>Oral contrast</option>
+          <option>With and without contrast</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <label>Suggested Views / Sequences <span style="font-weight:400;color:var(--text3);font-size:11px">— tap to toggle</span></label>
+      <div class="chip-group" id="imgViewsChips" style="margin-top:4px">
+        <em style="color:var(--text3);font-size:12px">Select a modality to see suggested views.</em>
+      </div>
+      <div style="margin-top:8px"><label>Additional Views / Custom Instructions</label><input id="imgViewsCustom" placeholder="e.g. Spot view L5-S1, Stress views, Weight-bearing"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Clinical Information</div>
+    <div style="margin-bottom:10px">
+      <label>Clinical History (auto-populated, editable)</label>
+      <textarea id="imgClinicalHx" rows="5" placeholder="Click 'Refresh from Notes' to auto-populate from current visit data."></textarea>
+    </div>
+    <div style="margin-bottom:10px">
+      <label>Clinical Question / Reason for Imaging</label>
+      <textarea id="imgClinicalQ" rows="3" placeholder="What are we looking for? e.g. Rule out disc herniation at C5/C6 with foraminal stenosis correlating to radicular symptoms."></textarea>
+    </div>
+    <div>
+      <label>Recommendation Rationale <span style="font-weight:400;color:var(--text3);font-size:11px">— auto-generated from ICD-10</span></label>
+      <textarea id="imgRationale" rows="3" placeholder="Auto-generated rationale will appear here." style="background:var(--surface2)"></textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Safety Screening</div>
+    <div class="grid">
+      <div><label>Pregnancy Status</label>
+        <select id="imgPregnancy">
+          <option>N/A</option>
+          <option>No</option>
+          <option>Yes</option>
+          <option>Possible / unconfirmed</option>
+        </select>
+      </div>
+      <div><label>Renal Function (eGFR)</label><input id="imgRenal" placeholder="If contrast considered"></div>
+      <div><label>Implants / Devices (MRI safety)</label><input id="imgImplants" placeholder="Pacemaker, metal implants, surgical clips, etc."></div>
+      <div><label>Claustrophobia</label>
+        <select id="imgClaustro">
+          <option>No</option>
+          <option>Mild</option>
+          <option>Significant</option>
+        </select>
+      </div>
+      <div style="grid-column:1/-1"><label>Allergies (auto-from history)</label><input id="imgAllergies" placeholder="e.g. Iodine, contrast media"></div>
+      <div style="grid-column:1/-1"><label>Previous Relevant Imaging</label><textarea id="imgPriorImaging" rows="2" placeholder="e.g. Lumbar X-ray Jan 2025 — mild L4/L5 disc space narrowing"></textarea></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CERTIFICATE OF INDISPOSITION ============ -->
+<div class="section" id="sec-cert">
+  <div class="card">
+    <div class="card-title"><span class="icon">📜</span> Certificate of Indisposition</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Auto-populated from patient notes. Generates an A4 certificate with QR code for verification.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <button data-cc-click="refreshCertFromNotes()" style="background:var(--accent);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600">↻ Refresh from Notes</button>
+      <button data-cc-click="printCertificate()" style="background:var(--accent2);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600">🖨 Print / Save Certificate</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Patient</div>
+    <div id="certPatientSummary" style="font-size:13px;line-height:1.6;background:var(--surface2);padding:10px 12px;border-radius:8px;border:1px solid var(--border)">
+      <em style="color:var(--text3)">Click "Refresh from Notes" to auto-fill patient details.</em>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Indisposition Period</div>
+    <div class="grid">
+      <div><label>Date of Consultation</label><input type="date" id="certConsultDate"></div>
+      <div><label>Type</label>
+        <select id="certType" data-cc-change="onCertTypeChange()">
+          <option>Booked off work — full duty unfit</option>
+          <option>Light duty / restricted activity</option>
+          <option>Sedentary work only</option>
+          <option>Unfit for school / sport</option>
+          <option>Hospitalised</option>
+        </select>
+      </div>
+      <div><label>From Date</label><input type="date" id="certFromDate"></div>
+      <div><label>To Date (inclusive)</label><input type="date" id="certToDate"></div>
+      <div style="grid-column:1/-1">
+        <label>Quick set <span style="font-weight:400;color:var(--text3);font-size:11px">— tap to fill From/To from consultation date</span></label>
+        <div class="chip-group" style="margin-top:4px">
+          <span class="chip" data-cc-click="certQuickSet(1)">1 day</span>
+          <span class="chip" data-cc-click="certQuickSet(2)">2 days</span>
+          <span class="chip" data-cc-click="certQuickSet(3)">3 days</span>
+          <span class="chip" data-cc-click="certQuickSet(5)">5 days</span>
+          <span class="chip" data-cc-click="certQuickSet(7)">1 week</span>
+          <span class="chip" data-cc-click="certQuickSet(14)">2 weeks</span>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:8px;background:var(--surface2);padding:8px 12px;border-radius:6px;border:1px solid var(--border);font-size:12px;color:var(--text2)">
+      <span id="certDurationLabel">Period not set</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Clinical Information</div>
+    <div class="grid">
+      <div style="grid-column:1/-1"><label>Disclosure on certificate</label>
+        <select id="certDisclosure">
+          <option value="generic">"Suffering from a medical condition" (no diagnosis disclosed)</option>
+          <option value="code">ICD-10 code only (no description)</option>
+          <option value="full">Full diagnosis (ICD-10 + description)</option>
+        </select>
+      </div>
+      <div style="grid-column:1/-1"><label>Diagnosis (auto-populated, editable)</label><textarea id="certDiagnosis" rows="2" placeholder="Auto-populated from primary diagnosis on Examination tab"></textarea></div>
+      <div style="grid-column:1/-1"><label>Restrictions / Recommendations</label><textarea id="certRestrictions" rows="3" placeholder="e.g. No lifting > 5 kg, no prolonged sitting, no driving for first 48 hrs."></textarea></div>
+      <div style="grid-column:1/-1"><label>Additional Notes</label><textarea id="certNotes" rows="2" placeholder="Optional notes for the certificate"></textarea></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">QR Code Verification <span style="font-weight:400;color:var(--text3);font-size:11px">— preview</span></div>
+    <p style="font-size:11px;color:var(--text2);margin-bottom:8px">A QR code will be embedded on the certificate containing patient ID, dates, and practitioner details for verification.</p>
+    <div id="certQrPreview" style="text-align:center;padding:8px"><em style="color:var(--text3);font-size:12px">QR preview will appear after refresh</em></div>
+  </div>
+</div>
+
+<div class="section" id="sec-report">
+<div class="card p10-view" id="p10AboutCard" style="font-size:12px"><b>About &amp; credits</b> — 3D figure by tantatic (CC BY 4.0, modified), three.js and meshoptimizer (MIT), normal ROM sources. <a href="#" data-cc-click="P1Rom.showCredits();return false;">Open credits</a></div>
+  <div class="card">
+    <div class="card-title"><span class="icon">📨</span> Refer to Practitioner <span style="font-weight:400;color:var(--text3);font-size:11px">— optional</span></div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:10px">Select a practitioner to address the report to, or generate a separate referral letter to email them.</p>
+
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <button data-cc-click="showReferralNetworkModal()" style="background:var(--surface3);color:var(--text);padding:8px 14px;border-radius:6px;font-size:13px;border:1px solid var(--border)">👥 Manage Network</button>
+      <span id="refNetworkCount" style="font-size:11px;color:var(--text3)"></span>
+    </div>
+
+    <label style="margin-top:6px">Practitioner Type <span style="font-weight:400;color:var(--text3);font-size:11px">— tap to filter</span></label>
+    <div class="chip-group" id="refTypeChips" style="margin-top:4px;margin-bottom:10px">
+      <span class="chip" data-cc-click="toggleRefType(this)" data-val="General Practitioner">GP</span>
+      <span class="chip" data-cc-click="toggleRefType(this)" data-val="Chiropractor">Chiropractor</span>
+      <span class="chip" data-cc-click="toggleRefType(this)" data-val="Physiotherapist">Physiotherapist</span>
+      <span class="chip" data-cc-click="toggleRefType(this)" data-val="Biokineticist">Biokineticist</span>
+      <span class="chip" data-cc-click="toggleRefType(this)" data-val="Occupational Therapist">OT</span>
+      <span class="chip" data-cc-click="toggleRefType(this)" data-val="Neurologist">Neurologist</span>
+      <span class="chip" data-cc-click="toggleRefType(this)" data-val="Neurosurgeon">Neurosurgeon</span>
+      <span class="chip" data-cc-click="toggleRefType(this)" data-val="Orthopaedic Surgeon">Orthopaedic Surgeon</span>
+      <span class="chip" data-cc-click="toggleRefType(this)" data-val="Physician">Physician</span>
+      <span class="chip" data-cc-click="toggleRefType(this)" data-val="Rheumatologist">Rheumatologist</span>
+      <span class="chip" data-cc-click="toggleRefType(this)" data-val="Sports Medicine">Sports Medicine</span>
+      <span class="chip" data-cc-click="toggleRefType(this)" data-val="Pain Management">Pain Management</span>
+      <span class="chip" data-cc-click="toggleRefType(this)" data-val="Psychologist">Psychologist</span>
+      <span class="chip" data-cc-click="toggleRefType(this)" data-val="Psychiatrist">Psychiatrist</span>
+      <span class="chip" data-cc-click="toggleRefType(this)" data-val="Podiatrist">Podiatrist</span>
+      <span class="chip" data-cc-click="toggleRefType(this)" data-val="Other">Other</span>
+    </div>
+
+    <div class="grid">
+      <div><label>Area</label>
+        <select id="refArea" data-cc-change="updateReferralPractitionerList()">
+          <option value="">— Any area —</option>
+        </select>
+      </div>
+      <div><label>Practitioner</label>
+        <select id="refPractitioner" data-cc-change="onReferralPractitionerSelected()">
+          <option value="">— Select practitioner —</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="refSelectedPreview" style="display:none;background:var(--surface2);padding:10px 12px;border-radius:8px;border:1px solid var(--border);margin-top:10px;font-size:12px;line-height:1.55"></div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+      <button data-cc-click="addressReportToReferral()" style="background:var(--accent);color:#fff;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600">📝 Address Report</button>
+      <button data-cc-click="generateReferralLetter()" style="background:var(--accent2);color:#fff;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600">🖨 Print Letter</button>
+      <button data-cc-click="emailReferralLetterWithPdf()" data-email-btn="referral" style="background:#3A7D79;color:#fff;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600">✉️📎 Email with PDF Attached</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">🤖</span> AI Report of Findings</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Build a draft Report of Findings from the current examination data. It is made on this device only; no patient data is sent to any outside (AI) service. AI drafting is switched off.</p>
+    <button data-cc-click="generateReport()" style="background:var(--accent);color:#fff;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600" id="genReportBtn">
+      ⚡ Generate Report of Findings
+    </button>
+    <div id="reportSpinner" style="display:none;margin:16px 0"><div class="spinner"></div> Generating report...</div>
+    <div style="margin-top:16px">
+      <label>Report (editable)</label>
+      <textarea id="reportOutput" rows="20" placeholder="Report will appear here after generation. You can also type/edit directly."></textarea>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<!-- CLOUD SYNC MODAL -->
+<div class="modal-overlay" id="cloudModal" data-cc-click="if(event.target===this) this.classList.remove('show')">
+  <div class="modal" data-cc-click="event.stopPropagation()">
+    <button class="modal-close" data-cc-click="document.getElementById('cloudModal').classList.remove('show')">&times;</button>
+    <h2>☁️ Firebase Cloud Setup</h2>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Connect to Firebase to sync data across devices and receive patient intake forms.</p>
+    <div style="margin-bottom:12px">
+      <label>Firebase Config (paste from Firebase Console)</label>
+      <textarea id="firebaseConfigInput" rows="6" placeholder='{"apiKey":"...","authDomain":"...","databaseURL":"https://your-project.firebaseio.com","projectId":"..."}'></textarea>
+    </div>
+    <div class="grid2" style="margin-bottom:12px">
+      <button data-cc-click="saveFirebaseConfig()" style="background:var(--accent);color:#fff;padding:8px;border-radius:6px;font-size:13px;width:100%">💾 Save Config</button>
+      <button data-cc-click="testFirebase()" style="background:var(--green);color:#000;padding:8px;border-radius:6px;font-size:13px;width:100%">🔌 Test Connection</button>
+    </div>
+    <div class="grid2" style="margin-bottom:12px">
+      <button data-cc-click="retryFirebase()" style="background:var(--surface3);color:var(--text);padding:8px;border-radius:6px;font-size:13px;width:100%;border:1px solid var(--border)">🔄 Retry Connection</button>
+      <button data-cc-click="diagnoseFirebaseNetwork()" style="background:var(--surface3);color:var(--text);padding:8px;border-radius:6px;font-size:13px;width:100%;border:1px solid var(--border)">🔍 Diagnose Network</button>
+    </div>
+    <div id="fbStatus" style="font-size:11px;color:var(--text2);margin-bottom:12px"></div>
+    <hr style="border-color:var(--border);margin:12px 0">
+    <h3 style="font-size:13px;margin-bottom:8px">📥 Incoming Patient Intake Forms</h3>
+    <div id="intakeList" style="max-height:200px;overflow-y:auto">
+      <p style="font-size:11px;color:var(--text3)">Connect to Firebase to see pending intake forms</p>
+    </div>
+  </div>
+</div>
+
+<!-- INTAKE IMPORT NOTIFICATION -->
+<div id="intakeNotification" style="display:none;position:fixed;top:60px;right:16px;background:var(--green);color:#000;padding:12px 16px;border-radius:10px;font-size:13px;font-weight:600;z-index:250;cursor:pointer;box-shadow:0 4px 20px rgba(52,211,153,.4);animation:fadeIn .3s" data-cc-click="showCloudModal()">
+  📥 New patient intake received!
+</div>
+
+<!-- PROFILE / SETTINGS MODAL -->
+<div class="modal-overlay" id="profileModal" data-cc-click="if(event.target===this) this.classList.remove('show')">
+  <div class="modal" data-cc-click="event.stopPropagation()" style="max-width:560px">
+    <button class="modal-close" data-cc-click="document.getElementById('profileModal').classList.remove('show')">&times;</button>
+    <h2>⚙️ Practitioner Profile</h2>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:12px">These details appear on referrals, certificates and PDF exports. Saved to this device only.</p>
+
+    <div class="section-label" style="margin-top:8px">Practitioner Details</div>
+    <div class="grid" style="margin-bottom:12px">
+      <div style="grid-column:1/-1"><label>Full Name</label><input id="prfName" placeholder="Dr Theunis J Greyvensteyn"></div>
+      <div style="grid-column:1/-1"><label>Qualifications</label><input id="prfQuals" placeholder="MChiropractic (UJ), ICSP, MCASA"></div>
+      <div><label>HPCSA Pr Number</label><input id="prfPrNo" placeholder="0113301"></div>
+      <div><label>HPCSA Number</label><input id="prfHpcsa" placeholder="CH 12345 (optional)"></div>
+      <div><label>Mobile</label><input id="prfMobile" placeholder="+27 ..."></div>
+      <div><label>Email</label><input id="prfEmail" placeholder="..."></div>
+    </div>
+
+    <div class="section-label">Melkbosstrand Chiropractic <span style="font-weight:400;color:var(--text3);font-size:11px">— Wed / Fri</span></div>
+    <div class="grid" style="margin-bottom:12px">
+      <div style="grid-column:1/-1"><label>Address</label><textarea id="prfMelkbosstrandAddr" rows="2" placeholder="Practice address"></textarea></div>
+      <div><label>Phone</label><input id="prfMelkbosstrandPhone" placeholder="Practice phone"></div>
+      <div><label>Email</label><input id="prfMelkbosstrandEmail" placeholder="Practice email"></div>
+    </div>
+
+    <div class="section-label">Vredenburg Practice <span style="font-weight:400;color:var(--text3);font-size:11px">— Mon / Tue / Thu</span></div>
+    <div class="grid" style="margin-bottom:12px">
+      <div style="grid-column:1/-1"><label>Address</label><textarea id="prfVredAddr" rows="2" placeholder="Practice address"></textarea></div>
+      <div><label>Phone</label><input id="prfVredPhone" placeholder="Practice phone"></div>
+      <div><label>Email</label><input id="prfVredEmail" placeholder="Practice email"></div>
+    </div>
+
+    <div class="section-label">Digital Signature</div>
+    <p style="font-size:11px;color:var(--text2);margin-bottom:6px">Upload a transparent PNG of your signature (recommended ~600 × 200 px). It will appear on referrals and certificates.</p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+      <button data-cc-click="document.getElementById('prfSigInput').click()" style="background:var(--accent);color:#fff;padding:8px 14px;border-radius:6px;font-size:13px">📷 Upload Signature</button>
+      <button data-cc-click="clearSignature()" style="background:var(--surface3);color:var(--text);padding:8px 14px;border-radius:6px;font-size:13px;border:1px solid var(--border)">Clear</button>
+      <input type="file" id="prfSigInput" accept="image/*" style="display:none" data-cc-change="handleSignatureUpload(event)">
+    </div>
+    <div id="prfSigPreview" style="background:#fff;border:1px dashed var(--border);border-radius:8px;padding:12px;text-align:center;min-height:60px"><em style="color:var(--text3);font-size:12px">No signature uploaded</em></div>
+
+    <div class="section-label" style="margin-top:16px">Letterhead</div>
+    <p style="font-size:11px;color:var(--text2);margin-bottom:6px">Used at the top of every letter, referral, certificate and PDF export. Upload images only (PNG or JPG). To use a PDF letterhead, save that page as a PNG first.</p>
+    <div class="grid" style="margin-bottom:8px">
+      <div style="grid-column:1/-1"><label>Header style</label>
+        <select id="lhMode" data-cc-change="lhFormChanged()">
+          <option value="default">ChiroClinic logo + my details (default)</option>
+          <option value="image">My letterhead image</option>
+          <option value="paper">Pre-printed letterhead paper (leave top blank)</option>
+        </select></div>
+      <div><label>Top margin (mm)</label><input id="lhTop" type="number" min="0" max="150" step="1" data-cc-input="lhFormChanged()"></div>
+      <div><label>Bottom margin (mm)</label><input id="lhBottom" type="number" min="0" max="80" step="1" data-cc-input="lhFormChanged()"></div>
+    </div>
+    <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:8px">
+      <div style="flex:1;min-width:200px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <button data-cc-click="document.getElementById('lhHeaderInput').click()" style="background:var(--accent);color:#fff;padding:8px 14px;border-radius:6px;font-size:13px">🖼 Upload Header Image</button>
+          <button data-cc-click="lhClearImage('header')" style="background:var(--surface3);color:var(--text);padding:8px 14px;border-radius:6px;font-size:13px;border:1px solid var(--border)">Clear</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <button data-cc-click="document.getElementById('lhFooterInput').click()" style="background:var(--accent2);color:#fff;padding:8px 14px;border-radius:6px;font-size:13px">🖼 Upload Footer Image</button>
+          <button data-cc-click="lhClearImage('footer')" style="background:var(--surface3);color:var(--text);padding:8px 14px;border-radius:6px;font-size:13px;border:1px solid var(--border)">Clear</button>
+        </div>
+        <input type="file" id="lhHeaderInput" accept="image/png,image/jpeg" style="display:none" data-cc-change="lhHandleUpload(event,'header')">
+        <input type="file" id="lhFooterInput" accept="image/png,image/jpeg" style="display:none" data-cc-change="lhHandleUpload(event,'footer')">
+        <p id="lhStatus" style="font-size:11px;color:var(--text3);margin:0 0 6px"></p>
+        <p style="font-size:11px;color:var(--text3);margin:0">Header image: full design width, e.g. 2480 px wide. Top margin = space above the header (or the blank area for pre-printed paper). The footer image is used only with "My letterhead image".</p>
+      </div>
+      <div id="lhPreview" title="Live preview (A4)"></div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button data-cc-click="saveProfile()" style="background:var(--accent);color:#fff;padding:10px;border-radius:6px;font-size:14px;flex:1;font-weight:600">💾 Save Profile</button>
+    </div>
+  </div>
+</div>
+
+<!-- REFERRAL NETWORK MODAL -->
+<div class="modal-overlay" id="referralNetworkModal" data-cc-click="if(event.target===this) this.classList.remove('show')">
+  <div class="modal" data-cc-click="event.stopPropagation()" style="max-width:640px">
+    <button class="modal-close" data-cc-click="document.getElementById('referralNetworkModal').classList.remove('show')">&times;</button>
+    <h2>👥 Referral Network</h2>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:6px">Manage your list of practitioners. Saved to this device only.</p>
+    <p style="font-size:11px;color:var(--text3);margin-bottom:12px">Integrated South African database: 417 providers across all 9 provinces. Public-directory contact details can change; verify details before a first referral.</p>
+
+    <div style="margin-bottom:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input id="refNetSearch" placeholder="Search by name, type, or area..." style="flex:1;min-width:180px" data-cc-input="renderReferralNetworkList()">
+      <button data-cc-click="showReferralEditor()" style="background:var(--accent);color:#fff;padding:8px 14px;border-radius:6px;font-size:13px">+ Add New</button>
+    </div>
+    <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:space-between">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer">
+        <input type="checkbox" id="refNetStarredOnly" data-cc-change="renderReferralNetworkList()" style="margin:0;width:auto"> ★ Starred only
+      </label>
+      <div style="display:flex;gap:6px">
+        <button data-cc-click="importReferralDatabase()" style="background:var(--surface3);color:var(--text);padding:6px 10px;border-radius:5px;font-size:11px;border:1px solid var(--border)" title="Merge the integrated South African referral database without overwriting your entries">↻ Sync SA Database</button>
+        <button data-cc-click="clearReferralNetwork()" style="background:var(--surface3);color:var(--red);padding:6px 10px;border-radius:5px;font-size:11px;border:1px solid var(--border)">Clear All</button>
+      </div>
+    </div>
+
+    <div id="refNetList" style="max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--surface2)">
+      <em style="color:var(--text3);padding:16px;display:block;text-align:center">Network is empty — tap "+ Add New" to start building it.</em>
+    </div>
+
+    <!-- Editor (hidden by default) -->
+    <div id="refNetEditor" style="display:none;margin-top:12px;padding:12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+      <input type="hidden" id="refEdId">
+      <div class="grid" style="margin-bottom:8px">
+        <div style="grid-column:1/-1"><label>Practitioner Name *</label><input id="refEdName" placeholder="e.g. Dr Jane Smith"></div>
+        <div><label>Type *</label>
+          <select id="refEdType">
+            <option value="">— Select type —</option>
+            <option>General Practitioner</option>
+            <option>Chiropractor</option>
+            <option>Physiotherapist</option>
+            <option>Biokineticist</option>
+            <option>Occupational Therapist</option>
+            <option>Neurologist</option>
+            <option>Neurosurgeon</option>
+            <option>Orthopaedic Surgeon</option>
+            <option>Physician</option>
+            <option>Rheumatologist</option>
+            <option>Sports Medicine</option>
+            <option>Pain Management</option>
+            <option>Psychologist</option>
+            <option>Psychiatrist</option>
+            <option>Podiatrist</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div><label>Area / Suburb *</label><input id="refEdArea" placeholder="e.g. Cape Town CBD" list="refAreaSuggestions"></div>
+        <datalist id="refAreaSuggestions"></datalist>
+        <div><label>Phone</label><input id="refEdPhone" placeholder="021 ..."></div>
+        <div><label>Email</label><input id="refEdEmail" placeholder="dr@example.co.za"></div>
+        <div style="grid-column:1/-1"><label>Practice Address</label><textarea id="refEdAddress" rows="2" placeholder="Street, suburb, postal code"></textarea></div>
+        <div style="grid-column:1/-1"><label>Notes</label><textarea id="refEdNotes" rows="2" placeholder="e.g. Prefers MRI before referral, accepts Discovery"></textarea></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button data-cc-click="saveReferralPractitioner()" style="background:var(--accent);color:#fff;padding:8px 14px;border-radius:6px;font-size:13px;flex:1">💾 Save</button>
+        <button data-cc-click="hideReferralEditor()" style="background:var(--surface3);color:var(--text);padding:8px 14px;border-radius:6px;font-size:13px;border:1px solid var(--border)">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- V4.5.4 floating dictation panel: outside all clinical sections; toggle is in the top header -->
+<div id="dictFloatPanel" aria-label="Floating dictation panel">
+  <div class="dict-float-head">
+    <strong>🎙 Floating Dictation</strong>
+    <button type="button" data-cc-click="toggleFloatingDictation(false)" style="border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:8px;padding:4px 8px">Close</button>
+  </div>
+  <div class="dict-float-body">
+    <div><span class="dict-badge">Isolated panel</span> <span class="dict-badge">Does not alter Examination renderer</span></div>
+    <div class="dict-float-row">
+      <label style="flex:1;min-width:150px">Target
+        <select id="dictTarget" style="width:100%;margin-top:4px">
+          <option value="auto">Auto / current exam</option>
+          <option value="activeRom">Active ROM</option>
+          <option value="passiveRom">Passive ROM</option>
+          <option value="ortho">Orthopaedic tests</option>
+          <option value="derm">Dermatomes</option>
+          <option value="myo">Myotomes</option>
+          <option value="reflex">Reflexes</option>
+          <option value="palp">Palpation / notes</option>
+        </select>
+      </label>
+      <label style="flex:1;min-width:130px">Region
+        <select id="dictRegion" style="width:100%;margin-top:4px">
+          <option value="current">Current region</option>
+          <option value="cs">C/S</option><option value="ts">T/S</option><option value="ls">L/S</option><option value="pelvis">Pelvis</option>
+          <option value="shoulder">Shoulder</option><option value="elbow">Elbow</option><option value="wrist">Wrist</option><option value="hip">Hip</option><option value="knee">Knee</option><option value="ankle">Ankle/Foot</option>
+        </select>
+      </label>
+    </div>
+    <div class="dict-float-row">
+      <button type="button" data-cc-click="startFloatingDictation(false)">Start one command</button>
+      <button type="button" data-cc-click="startFloatingDictation(true)">Continuous</button>
+      <button type="button" data-cc-click="stopFloatingDictation()">Stop</button>
+    </div>
+    <label>Manual / iPad keyboard microphone fallback</label>
+    <textarea id="dictManualText" placeholder="Examples:\nactive flexion 40 pain yes restricted yes\npassive extension 30 pain no end feel capsular\nSpurling right positive\ndermatome C6 right reduced\nmyotome C6 right 4\nbiceps reflex right reduced\nnote marked right levator tenderness"></textarea>
+    <div class="dict-float-row">
+      <button type="button" data-cc-click="applyFloatingDictationManual()">Apply typed/dictated command</button>
+      <button type="button" data-cc-click="document.getElementById('dictManualText').value=''">Clear box</button>
+    </div>
+    <div id="dictFloatStatus">Ready. Browser speech recognition may require Chrome/Safari support; iPad keyboard microphone can be used in the box.</div>
+    <div id="dictFloatLog"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="jsonLoadInput" accept=".json" style="display:none" data-cc-change="handleJSONLoad(event)">
+<input type="file" id="ezmedLoadInput" accept=".ezmed,.json" style="display:none" data-cc-change="handleEzmedLoad(event)">
+
+<script src="medication-database.js"></script>
+<script src="medication-interactions.js"></script>
+<script src="referral-database.js"></script>
+<script src="./app-main.js"></script>
+
+<script src="./ehr-p0.js"></script>
+<script src="./p1-item1.js"></script>
+<script src="./p1-item2.js"></script>
+<script src="./p1-item3.js"></script>
+<script src="./p1-item4.js"></script>
+<script src="./p1-item5.js"></script>
+<script src="./p1-docpractice.js"></script>
+<script src="./p1-item6.js"></script>
+<script src="./icd10-mit-2021.js"></script>
+<script src="./p1-item7.js"></script>
+<script src="./p1-item7-rates.js"></script>
+<script src="./p1-item8.js"></script>
+<script src="./p1-item9.js"></script>
+<script src="./p1-hyper.js"></script>
+<script src="./p1-techwarn.js"></script>
+<script src="./p1-auth.js"></script>
+<script src="./p1-backup.js"></script>
+
+<script src="./pwa-boot.js" id="chiroclinic-pwa-bootstrap"></script>
+<script src="./p1-a11y.js"></script>
+</body>
+</html>

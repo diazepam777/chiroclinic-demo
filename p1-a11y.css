@@ -1,0 +1,19 @@
+/* P1 v6 audit — iPad / accessibility layer (no clinical content).
+   Touch screens (iPad): every tap target at least 44 x 44 pt (Apple Human Interface Guidelines, "Buttons" / hit targets;
+   also covers WCAG 2.2 SC 2.5.8 Target Size (Minimum) 24 x 24 CSS px). Inputs use 16 px text so iPad Safari does not zoom on focus.
+   Keyboard: a visible focus ring on every control (WCAG 2.2 SC 2.4.7 / 2.4.11). Not applied when printing. */
+@media screen and (pointer: coarse) {
+  button, [role="button"], .chip, .soap-tab, .nav button, a.btn, summary,
+  select, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]):not([type="color"]) { min-height: 44px; }
+  button, [role="button"], .chip, .soap-tab, .nav button, a.btn { min-width: 44px; }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: 16px; }
+  input[type="checkbox"], input[type="radio"] { min-width: 24px; min-height: 24px; }
+  input[type="range"] { min-height: 44px; }
+  /* text links: taller touch area without changing line layout (WCAG 2.5.8 24 px) */
+  a[href]:not([role="button"]):not(.btn) { padding-top: 5px; padding-bottom: 5px; }
+  label:has(> input[type="checkbox"]), label:has(> input[type="radio"]) { min-height: 44px; display: inline-flex; align-items: center; gap: 6px; }
+}
+@media screen {
+  :focus-visible { outline: 3px solid #1F5FBF !important; outline-offset: 2px; }
+  input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offset: 0; }
+}

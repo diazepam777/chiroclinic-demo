@@ -1,0 +1,1 @@
+/* P1 item 9: while patient kiosk is active this device only shows intake.html */try{var _k=JSON.parse(localStorage.getItem("chiroclinic_kiosk")||"null");if(_k&&_k.active)location.replace("./intake.html");}catch(e){}

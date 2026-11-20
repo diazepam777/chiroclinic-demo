@@ -1,0 +1,1 @@
+window.P1_INTAKE_KIOSK = true;
